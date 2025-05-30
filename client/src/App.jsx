@@ -1,10 +1,18 @@
 import React from 'react'
-import { Button } from "@/components/ui/button"
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import AppLayout from './layout/AppLayout'
+import Home from './pages/Home'
 
 
 const App = () => {
   return (
-    <Button variant="outline">Lets GO Boy</Button>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<AppLayout />}>
+          <Route index element={<Home />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
 
   )
 }
