@@ -41,7 +41,7 @@ const AppLayout = () => {
         <AppSidebar items={items} />
         <main className="flex-1 flex flex-col bg-background min-h-screen">
           <Topbar />
-          <div className='w-full min-h-[calc(95vh-216px)] flex flex-col'>
+          <div className='w-full min-h-[calc(95vh-216px)] flex flex-col pt-20'>
             {<Outlet />}
           </div>
           <Footer />
