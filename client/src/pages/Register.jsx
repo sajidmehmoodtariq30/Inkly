@@ -13,7 +13,7 @@ const Login = () => {
                         <img src={logo} width={150} alt="" />
                     </Link>
                 </div>
-                <div className="flex -mt-32 flex-1 items-center justify-center">
+                <div className="flex flex-1 items-center justify-center">
                     <div className="w-full max-w-xs">
                         <RegisterForm />
                     </div>
