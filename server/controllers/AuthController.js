@@ -16,6 +16,15 @@ const extractPublicIdFromUrl = (url) => {
 const generateAccessAndRefreshToken = async (userId) => {
     try {
         const user = await User.findById(userId);
+        if (!user) {
+            throw new Error("User not found");
+        }
+
+        // Check if required environment variables exist
+        if (!process.env.ACCESS_TOKEN_SECRET || !process.env.REFRESH_TOKEN_SECRET) {
+            throw new Error("JWT secrets not configured");
+        }
+
         const accessToken = user.generateAccessToken();
         const refreshToken = user.generateRefreshToken();
 
@@ -24,47 +33,45 @@ const generateAccessAndRefreshToken = async (userId) => {
 
         return { accessToken, refreshToken };
     } catch (error) {
-        throw new ApiError(500, "Token generation failed");
+        console.error("Token generation error:", error.message);
+        throw new ApiError(500, "Token generation failed: " + error.message);
     }
 };
 
 const registerUser = asyncHandler(async (req, res) => {
     // get user data from frontend
-    const { fullName, email, username, password } = req.body;
-
-    // validation - not empty
+    const { fullName, email, username, password } = req.body;    // validation - not empty
     if (
         [fullName, email, username, password].some(
             (field) => field?.trim() === ""
         )
     ) {
         res.status(400);
-        throw new ApiError("Please fill all fields", 400);
+        throw new ApiError(400, "Please fill all fields");
     } else if (!email.includes("@")) {
         res.status(400);
-        throw new ApiError("Invalid email", 400);
+        throw new ApiError(400, "Invalid email");
     }
 
     // check if user already exists
     const existedUser = await User.findOne({
         $or: [{ email }, { username }],
-    });
-    if (existedUser) {
+    });    if (existedUser) {
         res.status(409);
-        throw new ApiError("User already exists", 409);
+        throw new ApiError(409, "User already exists");
     }
 
     // check for files
     const avatarLocalPath = req.files?.avatar[0]?.path;
     if (!avatarLocalPath) {
         res.status(400);
-        throw new ApiError("Please upload avatar", 400);
+        throw new ApiError(400, "Please upload avatar");
     }
     // upload them to cloudinary, check avatar
     const avatar = await uploadOnCloudinary(avatarLocalPath);
     if (!avatar) {
         res.status(500);
-        throw new ApiError("Avatar upload failed", 500);
+        throw new ApiError(500, "Avatar upload failed");
     }
 
     // create user object create entry in db
@@ -84,10 +91,9 @@ const registerUser = asyncHandler(async (req, res) => {
     if (!createdUser) {
         res.status(500);
         throw new ApiError(500, "User creation failed");
-    }
-    // return response
+    }    // return response
     res.status(201).json(
-        new ApiResponse("User created successfully", createdUser)
+        new ApiResponse(201, createdUser, "User created successfully")
     );
 });
 
@@ -181,15 +187,14 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
         const options = {
             httpOnly: true,
             secure: true,
-        };
-        return res
+        };        return res
             .status(200)
-            .cookie("refreshToken", refreshToken, options)
+            .cookie("refreshToken", newRefreshToken, options)
             .cookie("accessToken", accessToken, options)
             .json(
                 new ApiResponse(
                     200,
-                    { accessToken, mewRefreshToken },
+                    { accessToken, newRefreshToken },
                     "Token refreshed successfully"
                 )
             );
@@ -198,7 +203,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     }
 });
 
-export const AuthController = {
+export {
     registerUser,
     loginUser,
     logoutUser,

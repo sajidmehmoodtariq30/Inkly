@@ -23,6 +23,11 @@ app.get('/', (req, res) => {
     res.send('Hello, World!');
 })
 
+import userRouter from './routes/UserRoutes.js';
+
+app.use("/api/v1/users", userRouter);
+
+
 app.listen(Port, () => {
     console.log("Server is running on port " + Port);
 });
