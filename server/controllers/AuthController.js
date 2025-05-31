@@ -56,7 +56,7 @@ const registerUser = asyncHandler(async (req, res) => {
     // check if user already exists
     const existedUser = await User.findOne({
         $or: [{ email }, { username }],
-    });    if (existedUser) {
+    }); if (existedUser) {
         res.status(409);
         throw new ApiError(409, "User already exists");
     }
@@ -139,6 +139,73 @@ const loginUser = asyncHandler(async (req, res) => {
             )
         );
 });
+const GoogleLogin = asyncHandler(async (req, res) => {
+    // get userdata from frontend
+    const { email, displayName, photoURL, uid } = req.body;
+    
+    // Validate data
+    if (!email || !uid) {
+        throw new ApiError(400, "Email and UID are required from Google login");
+    }
+    
+    // Check if user exists
+    let user = await User.findOne({ email });
+    
+    if (!user) {
+        // Upload Google profile photo to Cloudinary if available
+        let avatarUrl = "";
+        if (photoURL) {
+            try {
+                // Download and upload the Google photo to Cloudinary
+                const avatar = await uploadOnCloudinary(photoURL);
+                if (avatar) {
+                    avatarUrl = avatar.url;
+                }
+            } catch (error) {
+                console.error("Avatar upload failed:", error);
+                // Continue without avatar if upload fails
+            }
+        }
+        
+        // Create new user for Google login
+        const username = email.split('@')[0] + '_' + uid.slice(0, 6); // Generate unique username
+        
+        user = await User.create({
+            fullName: displayName || "Google User",
+            avatar: avatarUrl,
+            email,
+            username: username.toLowerCase(),
+            password: uid, // Use UID as password for Google users
+            isGoogleUser: true // Add this field to identify Google users
+        });
+    }
+   
+    // Create token
+    const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
+        user._id
+    );
+    const loggedInUser = await User.findById(user._id).select(
+        "-password -refreshToken"
+    );
+    
+    // Send cookies and response
+    const options = {
+        httpOnly: true,
+        secure: true,
+    };
+
+    return res
+        .status(200)
+        .cookie("refreshToken", refreshToken, options)
+        .cookie("accessToken", accessToken, options)
+        .json(
+            new ApiResponse(
+                200,
+                { accessToken, user: loggedInUser, refreshToken },
+                "Google login successful"
+            )
+        );
+});
 
 const logoutUser = asyncHandler(async (req, res) => {
     // Clear cookies
@@ -182,12 +249,13 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
             throw new ApiError(400, "Refresh token is Invalid");
         }
 
-        const { accessToken, newRefreshToken } =
+        const { accessToken, refreshToken: newRefreshToken } =
             await generateAccessAndRefreshToken(user._id);
         const options = {
             httpOnly: true,
             secure: true,
-        };        return res
+        };
+        return res
             .status(200)
             .cookie("refreshToken", newRefreshToken, options)
             .cookie("accessToken", accessToken, options)
@@ -206,6 +274,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 export {
     registerUser,
     loginUser,
+    GoogleLogin,
     logoutUser,
     refreshAccessToken,
 };

@@ -6,6 +6,7 @@ import { useState } from "react"
 import { z } from "zod"
 import { Link, useNavigate } from "react-router-dom"
 import { showTost } from '../utils/toast.js'
+import GoogleLogin from "./GoogleLogin.jsx"
 
 const signupSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -80,15 +81,13 @@ export function RegisterForm({
   }
 
   return (
-    <form className={cn("flex flex-col gap-6", className)} onSubmit={handleSubmit} {...props}>
+    <form className={cn("flex flex-col gap-2", className)} onSubmit={handleSubmit} {...props}>
       <div className="flex flex-col items-center gap-2 text-center">
         <h1 className="text-2xl font-bold">Create a new account</h1>
-        <p className="text-muted-foreground text-sm text-balance">
-          Enter your credentials below to create your account
-        </p>
+        
       </div>
-      <div className="grid gap-6">
-        <div className="grid gap-3">
+      <div className="grid gap-2">
+        <div className="grid gap-2">
           <Label htmlFor="email">Email</Label>
           <Input
             id="email"
@@ -159,6 +158,10 @@ export function RegisterForm({
         <Button type="submit" className="w-full">
           Sign Up
         </Button>
+      </div>
+      <p className="text-center">Or</p>
+      <div>
+        <GoogleLogin />
       </div>
       <div className="text-center text-sm">
         Already have an account?{" "}

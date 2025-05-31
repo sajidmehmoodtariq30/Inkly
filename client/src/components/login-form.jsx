@@ -6,6 +6,7 @@ import { useState } from "react"
 import { z } from "zod"
 import { Link, useNavigate } from "react-router-dom"
 import { showTost } from '../utils/toast.js'
+import GoogleLogin from './GoogleLogin.jsx'
 
 const loginSchema = z.object({
   emailOrUsername: z.string().min(1, "Email or username is required"),
@@ -113,11 +114,14 @@ export function LoginForm({
             required 
           />
           {errors.password && <p className="text-red-500 text-sm">{errors.password}</p>}
-        </div>
-        <Button type="submit" className="w-full">
+        </div>        <Button type="submit" className="w-full">
           Login
         </Button>
         
+      </div>
+      <p className="text-center">Or</p>
+      <div>
+        <GoogleLogin />
       </div>
       <div className="text-center text-sm">
         Don&apos;t have an account?{" "}

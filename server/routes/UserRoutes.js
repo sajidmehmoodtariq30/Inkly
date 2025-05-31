@@ -3,6 +3,7 @@ import {
     registerUser,
     loginUser,
     logoutUser,
+    GoogleLogin,
     refreshAccessToken,
 } from "../controllers/AuthController.js";
 import { upload } from "../middleware/multerMiddleware.js";
@@ -17,6 +18,7 @@ router.route("/register").post(
 );
 
 router.route("/login").post(loginUser);
+router.route("/googleLogin").post(GoogleLogin);
 
 // secured Routes
 router.route("/logout").post(verifyJWT, logoutUser);
