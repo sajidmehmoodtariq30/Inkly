@@ -271,10 +271,111 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     }
 });
 
+const getCurrentUser = asyncHandler(async (req, res) => {
+    // Get current user data (req.user is set by verifyJWT middleware)
+    const user = await User.findById(req.user._id).select(
+        "-password -refreshToken"
+    );
+    
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+    
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                user,
+                "User profile fetched successfully"
+            )
+        );
+});
+
+const updateUser = asyncHandler(async (req, res) => {
+    const { fullName, username, bio } = req.body;
+    
+    // Get the current user
+    const userId = req.user._id;
+    
+    // Validate input data
+    if (!fullName?.trim() && !username?.trim() && bio === undefined) {
+        throw new ApiError(400, "At least one field is required to update");
+    }
+    
+    // Build update object with only provided fields
+    const updateData = {};
+    if (fullName?.trim()) updateData.fullName = fullName.trim();
+    if (username?.trim()) updateData.username = username.trim().toLowerCase();
+    if (bio !== undefined) updateData.bio = bio.trim();
+    
+    // Check if username is already taken (if username is being updated)
+    if (updateData.username) {
+        const existingUser = await User.findOne({ 
+            username: updateData.username,
+            _id: { $ne: userId } // Exclude current user
+        });
+        
+        if (existingUser) {
+            throw new ApiError(409, "Username already taken");
+        }
+    }
+    
+    // Handle avatar upload if provided
+    if (req.files?.avatar?.[0]) {
+        const avatarLocalPath = req.files.avatar[0].path;
+        const avatar = await uploadOnCloudinary(avatarLocalPath);
+        
+        if (!avatar) {
+            throw new ApiError(500, "Avatar upload failed");
+        }
+        
+        // Delete old avatar from cloudinary if it exists
+        const currentUser = await User.findById(userId);
+        if (currentUser.avatar) {
+            try {
+                const publicId = extractPublicIdFromUrl(currentUser.avatar);
+                await deleteFromCloudinary(publicId);
+            } catch (error) {
+                console.error("Failed to delete old avatar:", error);
+                // Continue even if deletion fails
+            }
+        }
+        
+        updateData.avatar = avatar.url;
+    }
+    
+    // Update user
+    const updatedUser = await User.findByIdAndUpdate(
+        userId,
+        updateData,
+        { 
+            new: true, 
+            runValidators: true 
+        }
+    ).select("-password -refreshToken");
+    
+    if (!updatedUser) {
+        throw new ApiError(404, "User not found");
+    }
+    
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                updatedUser,
+                "User profile updated successfully"
+            )
+        );
+});
+
 export {
     registerUser,
     loginUser,
     GoogleLogin,
     logoutUser,
     refreshAccessToken,
+    getCurrentUser,
+    updateUser,
 };

@@ -106,7 +106,15 @@ const authSlice = createSlice({
     },
     clearError: (state) => {
       state.error = null
-    },    // Handle Firebase auth state changes with serializable data
+    },
+    updateUserProfile: (state, action) => {
+      const updatedUser = action.payload
+      state.user = { ...state.user, ...updatedUser }
+      
+      // Update localStorage with new user data
+      localStorage.setItem('user', JSON.stringify(state.user))
+    },
+    // Handle Firebase auth state changes with serializable data
     handleFirebaseAuthChange: (state, action) => {
       const firebaseUser = action.payload
       
@@ -159,6 +167,7 @@ export const {
   setLoading, 
   setError, 
   clearError, 
+  updateUserProfile,
   handleFirebaseAuthChange 
 } = authSlice.actions
 

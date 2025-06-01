@@ -1,7 +1,5 @@
 import React, { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
-import { useAppDispatch } from '../redux/hooks'
-import { updateUserProfile } from '../redux/user/authSlice'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -13,7 +11,6 @@ import logo from '../assets/logo.png' // Adjust the path as necessary
 
 const Profile = () => {
   const { user, logout } = useAuth()
-  const dispatch = useAppDispatch()
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
@@ -89,13 +86,15 @@ const Profile = () => {
 
       if (!response.ok) {
         throw new Error(data.message || 'Failed to update profile')
-      }      showTost('Profile updated successfully!', 'success')
+      }
+
+      showTost('Profile updated successfully!', 'success')
       setIsEditing(false)
       setAvatarFile(null)
       setPreviewUrl(null)
       
-      // Update user data in Redux store
-      dispatch(updateUserProfile(data.data))
+      // Refresh the page to get updated user data
+      window.location.reload()
       
     } catch (error) {
       console.error('Profile update error:', error)

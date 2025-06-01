@@ -1,7 +1,5 @@
 import React, { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
-import { useAppDispatch } from '../redux/hooks'
-import { updateUserProfile } from '../redux/user/authSlice'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -13,7 +11,6 @@ import logo from '../assets/logo.png' // Adjust the path as necessary
 
 const Profile = () => {
   const { user, logout } = useAuth()
-  const dispatch = useAppDispatch()
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
@@ -89,13 +86,15 @@ const Profile = () => {
 
       if (!response.ok) {
         throw new Error(data.message || 'Failed to update profile')
-      }      showTost('Profile updated successfully!', 'success')
+      }
+
+      showTost('Profile updated successfully!', 'success')
       setIsEditing(false)
       setAvatarFile(null)
       setPreviewUrl(null)
       
-      // Update user data in Redux store
-      dispatch(updateUserProfile(data.data))
+      // Refresh the page to get updated user data
+      window.location.reload()
       
     } catch (error) {
       console.error('Profile update error:', error)
@@ -150,71 +149,27 @@ const Profile = () => {
       {/* Profile Content */}
       <div className="p-6">
         <div className="max-w-2xl mx-auto">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold">Profile</h1>
-            {!isEditing ? (
-              <Button onClick={handleEdit} className="flex items-center gap-2">
-                <Edit className="w-4 h-4" />
-                Edit Profile
-              </Button>
-            ) : (
-              <div className="flex gap-2">
-                <Button 
-                  onClick={handleSave} 
-                  disabled={isLoading}
-                  className="flex items-center gap-2"
-                >
-                  <Save className="w-4 h-4" />
-                  {isLoading ? 'Saving...' : 'Save'}
-                </Button>
-                <Button 
-                  onClick={handleCancel} 
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
-                  <X className="w-4 h-4" />
-                  Cancel
-                </Button>
-              </div>
-            )}
-          </div>
-          
+          <h1 className="text-3xl font-bold mb-6">Profile</h1>
           <Card>
             <CardHeader>
               <CardTitle>User Information</CardTitle>
-              <CardDescription>
-                {isEditing ? 'Edit your account details' : 'Your account details'}
-              </CardDescription>
+              <CardDescription>Your account details</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-4 mb-6">
-                <div className="relative">
-                  {(previewUrl || user?.avatar) ? (
-                    <img
-                      src={previewUrl || user.avatar}
-                      alt={user?.fullName}
-                      className="w-20 h-20 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center">
-                      <UserIcon className="w-8 h-8 text-gray-600" />
-                    </div>
-                  )}
-                  {isEditing && (
-                    <label className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full cursor-pointer opacity-0 hover:opacity-100 transition-opacity">
-                      <Upload className="w-6 h-6 text-white" />
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleAvatarChange}
-                        className="hidden"
-                      />
-                    </label>
-                  )}
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold">{formData.fullName || user?.fullName || 'User'}</h2>
-                  <p className="text-gray-600">@{formData.username || user?.username}</p>
+                {user?.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.fullName}
+                    className="w-20 h-20 rounded-full"
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center">
+                    <UserIcon className="w-8 h-8 text-gray-600" />
+                  </div>
+                )}                <div>
+                  <h2 className="text-xl font-semibold">{user?.fullName || 'User'}</h2>
+                  <p className="text-gray-600">@{user?.username}</p>
                   <p className="text-gray-600">{user?.email}</p>
                   {user?.role && (
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mt-1 ${
@@ -227,44 +182,24 @@ const Profile = () => {
                   )}
                 </div>
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Full Name
                   </label>
-                  {isEditing ? (
-                    <Input
-                      name="fullName"
-                      value={formData.fullName}
-                      onChange={handleInputChange}
-                      placeholder="Enter your full name"
-                    />
-                  ) : (
-                    <p className="text-gray-900">{user?.fullName || 'Not provided'}</p>
-                  )}
+                  <p className="text-gray-900">{user?.fullName || 'Not provided'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Username
                   </label>
-                  {isEditing ? (
-                    <Input
-                      name="username"
-                      value={formData.username}
-                      onChange={handleInputChange}
-                      placeholder="Enter your username"
-                    />
-                  ) : (
-                    <p className="text-gray-900">@{user?.username || 'Not provided'}</p>
-                  )}
+                  <p className="text-gray-900">@{user?.username || 'Not provided'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Email
                   </label>
                   <p className="text-gray-900">{user?.email || 'Not provided'}</p>
-                  {isEditing && <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -277,23 +212,12 @@ const Profile = () => {
                   }`}>
                     {user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1) || 'User'}
                   </span>
-                  {isEditing && <p className="text-xs text-gray-500 mt-1">Role cannot be changed</p>}
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Bio
                   </label>
-                  {isEditing ? (
-                    <Textarea
-                      name="bio"
-                      value={formData.bio}
-                      onChange={handleInputChange}
-                      placeholder="Tell us about yourself..."
-                      rows={4}
-                    />
-                  ) : (
-                    <p className="text-gray-900">{user?.bio || 'No bio added yet'}</p>
-                  )}
+                  <p className="text-gray-900">{user?.bio || 'No bio added yet'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
