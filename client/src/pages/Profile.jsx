@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
+import { useDropzone } from 'react-dropzone'
 import { useAuth } from '../hooks/useAuth'
 import { useAppDispatch } from '../redux/hooks'
 import { updateUserProfile } from '../redux/user/authSlice'
@@ -6,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Textarea } from '../components/ui/textarea'
-import { UserIcon, Search, LogOut, Edit, Save, X, Upload } from 'lucide-react'
+import { UserIcon, Search, LogOut, Edit, Save, X, Upload, Camera, ImageIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { showTost } from '../utils/toast'
 import logo from '../assets/logo.png' // Adjust the path as necessary
@@ -27,7 +28,6 @@ const Profile = () => {
   const handleLogout = () => {
     logout()
   }
-
   const handleInputChange = (e) => {
     const { name, value } = e.target
     setFormData(prev => ({
@@ -36,9 +36,53 @@ const Profile = () => {
     }))
   }
 
+  const onDrop = useCallback((acceptedFiles) => {
+    const file = acceptedFiles[0]
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        showTost('Please select an image file', 'error')
+        return
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        showTost('File size must be less than 5MB', 'error')
+        return
+      }
+
+      setAvatarFile(file)
+      const reader = new FileReader()
+      reader.onload = (e) => setPreviewUrl(e.target.result)
+      reader.readAsDataURL(file)
+      showTost('Image selected successfully', 'success')
+    }
+  }, [])
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp']
+    },
+    maxFiles: 1,
+    disabled: !isEditing
+  })
+
   const handleAvatarChange = (e) => {
     const file = e.target.files[0]
     if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        showTost('Please select an image file', 'error')
+        return
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        showTost('File size must be less than 5MB', 'error')
+        return
+      }
+
       setAvatarFile(file)
       const reader = new FileReader()
       reader.onload = (e) => setPreviewUrl(e.target.result)
@@ -65,7 +109,6 @@ const Profile = () => {
       bio: user?.bio || ''
     })
   }
-
   const handleSave = async () => {
     try {
       setIsLoading(true)
@@ -77,6 +120,7 @@ const Profile = () => {
       
       if (avatarFile) {
         formDataToSend.append('avatar', avatarFile)
+        showTost('Uploading image...', 'info')
       }
 
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}users/profile`, {
@@ -89,7 +133,9 @@ const Profile = () => {
 
       if (!response.ok) {
         throw new Error(data.message || 'Failed to update profile')
-      }      showTost('Profile updated successfully!', 'success')
+      }
+
+      showTost('Profile updated successfully!', 'success')
       setIsEditing(false)
       setAvatarFile(null)
       setPreviewUrl(null)
@@ -185,31 +231,94 @@ const Profile = () => {
               <CardDescription>
                 {isEditing ? 'Edit your account details' : 'Your account details'}
               </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-4 mb-6">
+            </CardHeader>            <CardContent>
+              <div className="flex items-center gap-6 mb-6">
                 <div className="relative">
-                  {(previewUrl || user?.avatar) ? (
-                    <img
-                      src={previewUrl || user.avatar}
-                      alt={user?.fullName}
-                      className="w-20 h-20 rounded-full object-cover"
-                    />
+                  {isEditing ? (
+                    <div 
+                      {...getRootProps()} 
+                      className={`w-24 h-24 rounded-full border-2 border-dashed cursor-pointer transition-all duration-200 ${
+                        isDragActive 
+                          ? 'border-blue-500 bg-blue-50' 
+                          : 'border-gray-300 hover:border-gray-400'
+                      } flex items-center justify-center relative overflow-hidden`}
+                    >
+                      <input {...getInputProps()} />
+                      {(previewUrl || user?.avatar) ? (
+                        <>
+                          <img
+                            src={previewUrl || user.avatar}
+                            alt={user?.fullName}
+                            className="w-full h-full rounded-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                            <div className="text-center">
+                              <Camera className="w-5 h-5 text-white mx-auto mb-1" />
+                              <p className="text-xs text-white">Change</p>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-center">
+                          {isDragActive ? (
+                            <>
+                              <Upload className="w-6 h-6 text-blue-500 mx-auto mb-1" />
+                              <p className="text-xs text-blue-600">Drop image here</p>
+                            </>
+                          ) : (
+                            <>
+                              <ImageIcon className="w-6 h-6 text-gray-400 mx-auto mb-1" />
+                              <p className="text-xs text-gray-500">Click or drag image</p>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   ) : (
-                    <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center">
-                      <UserIcon className="w-8 h-8 text-gray-600" />
+                    <div className="w-24 h-24">
+                      {user?.avatar ? (
+                        <img
+                          src={user.avatar}
+                          alt={user?.fullName}
+                          className="w-full h-full rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full rounded-full bg-gray-200 flex items-center justify-center">
+                          <UserIcon className="w-8 h-8 text-gray-600" />
+                        </div>
+                      )}
                     </div>
                   )}
-                  {isEditing && (
-                    <label className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full cursor-pointer opacity-0 hover:opacity-100 transition-opacity">
-                      <Upload className="w-6 h-6 text-white" />
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleAvatarChange}
-                        className="hidden"
-                      />
-                    </label>
+                    {isEditing && (
+                    <div className="mt-2">
+                      <p className="text-xs text-gray-500 text-center">
+                        Drag & drop or click to upload
+                      </p>
+                      <p className="text-xs text-gray-400 text-center">
+                        Max 5MB (JPG, PNG, GIF, WebP)
+                      </p>                      {avatarFile && (
+                        <div className="mt-2 flex justify-center">
+                          <div className="text-center">
+                            <p className="text-xs text-green-600 font-medium mb-1">
+                              ✓ New image selected
+                            </p>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setAvatarFile(null)
+                                setPreviewUrl(null)
+                              }}
+                              className="text-xs"
+                            >
+                              <X className="w-3 h-3 mr-1" />
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
                 <div>
