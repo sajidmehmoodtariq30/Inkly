@@ -7,7 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Textarea } from '../components/ui/textarea'
-import { UserIcon, Search, LogOut, Edit, Save, X, Upload, Camera, ImageIcon } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
+import { UserIcon, Search, LogOut, Edit, Save, X, Upload, Camera, ImageIcon, Globe, MapPin, Briefcase, Calendar, Eye, EyeOff, Twitter, Linkedin, Github, ExternalLink } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { showTost } from '../utils/toast'
 import logo from '../assets/logo.png' // Adjust the path as necessary
@@ -16,20 +17,38 @@ const Profile = () => {
   const { user, logout } = useAuth()
   const dispatch = useAppDispatch()
   const [isEditing, setIsEditing] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)  
   const [formData, setFormData] = useState({
     fullName: user?.fullName || '',
     username: user?.username || '',
-    bio: user?.bio || ''
+    bio: user?.bio || '',
+    location: user?.location || '',
+    profession: user?.profession || '',
+    profileVisibility: user?.preferences?.profileVisibility || 'public',
+    emailNotifications: user?.preferences?.emailNotifications || true,
+    pushNotifications: user?.preferences?.pushNotifications || true,
+    newsletter: user?.preferences?.newsletter || false,
+    // Social links
+    twitterUrl: user?.socialLinks?.twitter || '',
+    linkedinUrl: user?.socialLinks?.linkedin || '',
+    githubUrl: user?.socialLinks?.github || '',
+    websiteUrl: user?.socialLinks?.website || ''
   })
   const [avatarFile, setAvatarFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
 
   const handleLogout = () => {
     logout()
-  }
+  }  
   const handleInputChange = (e) => {
-    const { name, value } = e.target
+    const { name, value, type, checked } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }))
+  }
+
+  const handleSelectChange = (name, value) => {
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -89,16 +108,25 @@ const Profile = () => {
       reader.readAsDataURL(file)
     }
   }
-
   const handleEdit = () => {
     setIsEditing(true)
     setFormData({
       fullName: user?.fullName || '',
       username: user?.username || '',
-      bio: user?.bio || ''
+      bio: user?.bio || '',
+      location: user?.location || '',
+      profession: user?.profession || '',
+      profileVisibility: user?.preferences?.profileVisibility || 'public',
+      emailNotifications: user?.preferences?.emailNotifications || true,
+      pushNotifications: user?.preferences?.pushNotifications || true,
+      newsletter: user?.preferences?.newsletter || false,
+      // Social links
+      twitterUrl: user?.socialLinks?.twitter || '',
+      linkedinUrl: user?.socialLinks?.linkedin || '',
+      githubUrl: user?.socialLinks?.github || '',
+      websiteUrl: user?.socialLinks?.website || ''
     })
   }
-
   const handleCancel = () => {
     setIsEditing(false)
     setAvatarFile(null)
@@ -106,17 +134,39 @@ const Profile = () => {
     setFormData({
       fullName: user?.fullName || '',
       username: user?.username || '',
-      bio: user?.bio || ''
+      bio: user?.bio || '',
+      location: user?.location || '',
+      profession: user?.profession || '',
+      profileVisibility: user?.preferences?.profileVisibility || 'public',
+      emailNotifications: user?.preferences?.emailNotifications || true,
+      pushNotifications: user?.preferences?.pushNotifications || true,
+      newsletter: user?.preferences?.newsletter || false,
+      // Social links
+      twitterUrl: user?.socialLinks?.twitter || '',
+      linkedinUrl: user?.socialLinks?.linkedin || '',
+      githubUrl: user?.socialLinks?.github || '',
+      websiteUrl: user?.socialLinks?.website || ''
     })
   }
   const handleSave = async () => {
     try {
       setIsLoading(true)
-      
-      const formDataToSend = new FormData()
+        const formDataToSend = new FormData()
       formDataToSend.append('fullName', formData.fullName)
       formDataToSend.append('username', formData.username)
       formDataToSend.append('bio', formData.bio)
+      formDataToSend.append('location', formData.location)
+      formDataToSend.append('profession', formData.profession)
+      formDataToSend.append('profileVisibility', formData.profileVisibility)
+      formDataToSend.append('emailNotifications', formData.emailNotifications)
+      formDataToSend.append('pushNotifications', formData.pushNotifications)
+      formDataToSend.append('newsletter', formData.newsletter)
+      
+      // Social links
+      formDataToSend.append('twitterUrl', formData.twitterUrl)
+      formDataToSend.append('linkedinUrl', formData.linkedinUrl)
+      formDataToSend.append('githubUrl', formData.githubUrl)
+      formDataToSend.append('websiteUrl', formData.websiteUrl)
       
       if (avatarFile) {
         formDataToSend.append('avatar', avatarFile)
@@ -387,8 +437,7 @@ const Profile = () => {
                     {user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1) || 'User'}
                   </span>
                   {isEditing && <p className="text-xs text-gray-500 mt-1">Role cannot be changed</p>}
-                </div>
-                <div className="md:col-span-2">
+                </div>                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Bio
                   </label>
@@ -405,32 +454,330 @@ const Profile = () => {
                   )}
                 </div>
                 <div>
+                  <label className=" text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                    <MapPin className="w-4 h-4" />
+                    Location
+                  </label>
+                  {isEditing ? (
+                    <Input
+                      name="location"
+                      value={formData.location}
+                      onChange={handleInputChange}
+                      placeholder="Enter your location"
+                    />
+                  ) : (
+                    <p className="text-gray-900">{user?.location || 'Not provided'}</p>
+                  )}
+                </div>
+                <div>
+                  <label className=" text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                    <Briefcase className="w-4 h-4" />
+                    Profession
+                  </label>
+                  {isEditing ? (
+                    <Input
+                      name="profession"
+                      value={formData.profession}
+                      onChange={handleInputChange}
+                      placeholder="Enter your profession"
+                    />
+                  ) : (
+                    <p className="text-gray-900">{user?.profession || 'Not provided'}</p>
+                  )}
+                </div>
+                <div>
+                  <label className=" text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                    <Eye className="w-4 h-4" />
+                    Profile Visibility
+                  </label>
+                  {isEditing ? (
+                    <Select
+                      value={formData.profileVisibility}
+                      onValueChange={(value) => handleSelectChange('profileVisibility', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select visibility" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="public">Public</SelectItem>
+                        <SelectItem value="private">Private</SelectItem>
+                        <SelectItem value="followers">Followers Only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      user?.preferences?.profileVisibility === 'public' ? 'bg-green-100 text-green-800' :
+                      user?.preferences?.profileVisibility === 'private' ? 'bg-red-100 text-red-800' :
+                      'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {user?.preferences?.profileVisibility?.charAt(0).toUpperCase() + user?.preferences?.profileVisibility?.slice(1) || 'Public'}
+                    </span>
+                  )}
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Member Since
                   </label>
-                  <p className="text-gray-900">
+                  <p className="text-gray-900 flex items-center gap-1">
+                    <Calendar className="w-4 h-4" />
                     {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', {
                       year: 'numeric',
                       month: 'long',
                       day: 'numeric'
                     }) : 'Not available'}
                   </p>
+                </div>              </div>
+            </CardContent>
+          </Card>
+
+          {/* Social Links Section */}
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Globe className="w-5 h-5" />
+                Social Links
+              </CardTitle>
+              <CardDescription>
+                {isEditing ? 'Update your social media profiles' : 'Your social media profiles'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className=" text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                    <Twitter className="w-4 h-4" />
+                    Twitter
+                  </label>
+                  {isEditing ? (
+                    <Input
+                      name="twitterUrl"
+                      value={formData.twitterUrl}
+                      onChange={handleInputChange}
+                      placeholder="https://twitter.com/username"
+                    />
+                  ) : (
+                    user?.socialLinks?.twitter ? (
+                      <a 
+                        href={user.socialLinks.twitter} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                      >
+                        {user.socialLinks.twitter}
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    ) : (
+                      <p className="text-gray-500">Not provided</p>
+                    )
+                  )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Last Updated
+                  <label className=" text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                    <Linkedin className="w-4 h-4" />
+                    LinkedIn
                   </label>
-                  <p className="text-gray-900">
-                    {user?.updatedAt ? new Date(user.updatedAt).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    }) : 'Not available'}
-                  </p>
+                  {isEditing ? (
+                    <Input
+                      name="linkedinUrl"
+                      value={formData.linkedinUrl}
+                      onChange={handleInputChange}
+                      placeholder="https://linkedin.com/in/username"
+                    />
+                  ) : (
+                    user?.socialLinks?.linkedin ? (
+                      <a 
+                        href={user.socialLinks.linkedin} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                      >
+                        {user.socialLinks.linkedin}
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    ) : (
+                      <p className="text-gray-500">Not provided</p>
+                    )
+                  )}
+                </div>
+                <div>
+                  <label className=" text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                    <Github className="w-4 h-4" />
+                    GitHub
+                  </label>
+                  {isEditing ? (
+                    <Input
+                      name="githubUrl"
+                      value={formData.githubUrl}
+                      onChange={handleInputChange}
+                      placeholder="https://github.com/username"
+                    />
+                  ) : (
+                    user?.socialLinks?.github ? (
+                      <a 
+                        href={user.socialLinks.github} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                      >
+                        {user.socialLinks.github}
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    ) : (
+                      <p className="text-gray-500">Not provided</p>
+                    )
+                  )}
+                </div>
+                <div>
+                  <label className=" text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                    <Globe className="w-4 h-4" />
+                    Website
+                  </label>
+                  {isEditing ? (
+                    <Input
+                      name="websiteUrl"
+                      value={formData.websiteUrl}
+                      onChange={handleInputChange}
+                      placeholder="https://yourwebsite.com"
+                    />
+                  ) : (
+                    user?.socialLinks?.website ? (
+                      <a 
+                        href={user.socialLinks.website} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                      >
+                        {user.socialLinks.website}
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    ) : (
+                      <p className="text-gray-500">Not provided</p>
+                    )
+                  )}
                 </div>
               </div>
             </CardContent>
           </Card>
+
+          {/* Preferences Section */}
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Preferences</CardTitle>
+              <CardDescription>
+                {isEditing ? 'Update your account preferences' : 'Your account preferences'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Email Notifications</label>
+                    <p className="text-xs text-gray-500">Receive notifications via email</p>
+                  </div>
+                  {isEditing ? (
+                    <input
+                      type="checkbox"
+                      name="emailNotifications"
+                      checked={formData.emailNotifications}
+                      onChange={handleInputChange}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                  ) : (
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      user?.preferences?.emailNotifications ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      {user?.preferences?.emailNotifications ? 'Enabled' : 'Disabled'}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Push Notifications</label>
+                    <p className="text-xs text-gray-500">Receive push notifications in browser</p>
+                  </div>
+                  {isEditing ? (
+                    <input
+                      type="checkbox"
+                      name="pushNotifications"
+                      checked={formData.pushNotifications}
+                      onChange={handleInputChange}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                  ) : (
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      user?.preferences?.pushNotifications ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      {user?.preferences?.pushNotifications ? 'Enabled' : 'Disabled'}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Newsletter Subscription</label>
+                    <p className="text-xs text-gray-500">Receive our weekly newsletter</p>
+                  </div>
+                  {isEditing ? (
+                    <input
+                      type="checkbox"
+                      name="newsletter"
+                      checked={formData.newsletter}
+                      onChange={handleInputChange}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                  ) : (
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      user?.preferences?.newsletter ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      {user?.preferences?.newsletter ? 'Subscribed' : 'Not Subscribed'}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Statistics Section */}
+          {!isEditing && (
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle>Account Statistics</CardTitle>
+                <CardDescription>Your activity and engagement overview</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center p-4 bg-gray-50 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">{user?.totalPosts || 0}</div>
+                    <div className="text-sm text-gray-600">Posts</div>
+                  </div>
+                  <div className="text-center p-4 bg-gray-50 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">{user?.totalViews || 0}</div>
+                    <div className="text-sm text-gray-600">Views</div>
+                  </div>
+                  <div className="text-center p-4 bg-gray-50 rounded-lg">
+                    <div className="text-2xl font-bold text-red-600">{user?.totalLikes || 0}</div>
+                    <div className="text-sm text-gray-600">Likes</div>
+                  </div>
+                  <div className="text-center p-4 bg-gray-50 rounded-lg">
+                    <div className="text-2xl font-bold text-purple-600">{user?.followers || 0}</div>
+                    <div className="text-sm text-gray-600">Followers</div>
+                  </div>
+                </div>
+                {user?.lastLogin && (
+                  <div className="mt-4 pt-4 border-t">
+                    <p className="text-sm text-gray-600">
+                      Last login: {new Date(user.lastLogin).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

@@ -40,7 +40,21 @@ const generateAccessAndRefreshToken = async (userId) => {
 
 const registerUser = asyncHandler(async (req, res) => {
     // get user data from frontend
-    const { fullName, email, username, password } = req.body;    // validation - not empty
+    const { 
+        fullName, 
+        email, 
+        username, 
+        password,
+        bio,
+        location,
+        profession,
+        newsletter,
+        profileVisibility,
+        twitterUrl,
+        linkedinUrl,
+        githubUrl,
+        websiteUrl
+    } = req.body;// validation - not empty
     if (
         [fullName, email, username, password].some(
             (field) => field?.trim() === ""
@@ -72,16 +86,33 @@ const registerUser = asyncHandler(async (req, res) => {
     if (!avatar) {
         res.status(500);
         throw new ApiError(500, "Avatar upload failed");
-    }
-
-    // create user object create entry in db
-    const user = await User.create({
+    }    // create user object create entry in db
+    const userObj = {
         fullName,
         avatar: avatar.url,
         email,
         username: username.toLowerCase(),
         password,
-    });
+        signupSource: 'email'
+    };
+
+    // Add optional fields if provided
+    if (bio) userObj.bio = bio;
+    if (location) userObj.location = location;
+    if (profession) userObj.profession = profession;
+    if (profileVisibility) userObj['preferences.profileVisibility'] = profileVisibility;
+    if (newsletter !== undefined) userObj['preferences.newsletter'] = newsletter === 'true';
+    
+    // Add social links if provided
+    if (twitterUrl || linkedinUrl || githubUrl || websiteUrl) {
+        userObj.socialLinks = {};
+        if (twitterUrl) userObj['socialLinks.twitter'] = twitterUrl;
+        if (linkedinUrl) userObj['socialLinks.linkedin'] = linkedinUrl;
+        if (githubUrl) userObj['socialLinks.github'] = githubUrl;
+        if (websiteUrl) userObj['socialLinks.website'] = websiteUrl;
+    }
+
+    const user = await User.create(userObj);
 
     // remove password and refresh token feild from response
     const createdUser = await User.findById(user._id).select(
@@ -293,13 +324,31 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 });
 
 const updateUser = asyncHandler(async (req, res) => {
-    const { fullName, username, bio } = req.body;
+    const { 
+        fullName, 
+        username, 
+        bio,
+        location,
+        profession,
+        profileVisibility,
+        emailNotifications,
+        pushNotifications,
+        newsletter,
+        twitterUrl,
+        linkedinUrl,
+        githubUrl,
+        websiteUrl
+    } = req.body;
     
     // Get the current user
     const userId = req.user._id;
     
     // Validate input data
-    if (!fullName?.trim() && !username?.trim() && bio === undefined) {
+    if (!fullName?.trim() && !username?.trim() && bio === undefined && 
+        !location && !profession && !profileVisibility &&
+        emailNotifications === undefined && pushNotifications === undefined && 
+        newsletter === undefined && !twitterUrl && !linkedinUrl && 
+        !githubUrl && !websiteUrl) {
         throw new ApiError(400, "At least one field is required to update");
     }
     
@@ -308,6 +357,23 @@ const updateUser = asyncHandler(async (req, res) => {
     if (fullName?.trim()) updateData.fullName = fullName.trim();
     if (username?.trim()) updateData.username = username.trim().toLowerCase();
     if (bio !== undefined) updateData.bio = bio.trim();
+    if (location !== undefined) updateData.location = location.trim();
+    if (profession !== undefined) updateData.profession = profession.trim();
+      // Handle preferences
+    if (profileVisibility || emailNotifications !== undefined || pushNotifications !== undefined || newsletter !== undefined) {
+        if (profileVisibility) updateData['preferences.profileVisibility'] = profileVisibility;
+        if (emailNotifications !== undefined) updateData['preferences.emailNotifications'] = emailNotifications === 'true' || emailNotifications === true;
+        if (pushNotifications !== undefined) updateData['preferences.pushNotifications'] = pushNotifications === 'true' || pushNotifications === true;
+        if (newsletter !== undefined) updateData['preferences.newsletter'] = newsletter === 'true' || newsletter === true;
+    }
+    
+    // Handle social links
+    if (twitterUrl !== undefined || linkedinUrl !== undefined || githubUrl !== undefined || websiteUrl !== undefined) {
+        if (twitterUrl !== undefined) updateData['socialLinks.twitter'] = twitterUrl.trim();
+        if (linkedinUrl !== undefined) updateData['socialLinks.linkedin'] = linkedinUrl.trim();
+        if (githubUrl !== undefined) updateData['socialLinks.github'] = githubUrl.trim();
+        if (websiteUrl !== undefined) updateData['socialLinks.website'] = websiteUrl.trim();
+    }
     
     // Check if username is already taken (if username is being updated)
     if (updateData.username) {
