@@ -110,10 +110,29 @@ const userSchema = new Schema(
             type: Number,
             default: 0
         },
-        
-        followingCount: {
+          followingCount: {
             type: Number,
             default: 0
+        },
+        
+        // Admin & Moderation Fields
+        banned: {
+            type: Boolean,
+            default: false
+        },
+        
+        banReason: {
+            type: String,
+            trim: true
+        },
+        
+        bannedAt: {
+            type: Date
+        },
+        
+        lastLogin: {
+            type: Date,
+            default: Date.now
         },
         
         // User Preferences

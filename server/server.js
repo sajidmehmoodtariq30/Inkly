@@ -24,8 +24,10 @@ app.get('/', (req, res) => {
 })
 
 import userRouter from './routes/UserRoutes.js';
+import adminRouter from './routes/AdminRoutes.js';
 
 app.use("/api/v1/users", userRouter);
+app.use("/api/v1/admin", adminRouter);
 
 
 app.listen(Port, () => {

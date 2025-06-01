@@ -139,12 +139,16 @@ const loginUser = asyncHandler(async (req, res) => {
     const user = await User.findOne({ $or: [{ email }, { username }] });
     if (!user) {
         throw new ApiError(400, "User not found");
-    }
-    // Check if password is correct
+    }    // Check if password is correct
     const isPasswordCorrect = await user.comparePassword(password);
     if (!isPasswordCorrect) {
         throw new ApiError(400, "Invalid password");
     }
+    
+    // Update last login time
+    user.lastLogin = new Date();
+    await user.save({ validateBeforeSave: false });
+    
     // Create token
     const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
         user._id
@@ -206,10 +210,13 @@ const GoogleLogin = asyncHandler(async (req, res) => {
             avatar: avatarUrl,
             email,
             username: username.toLowerCase(),
-            password: uid, // Use UID as password for Google users
-            isGoogleUser: true // Add this field to identify Google users
+            password: uid, // Use UID as password for Google users            isGoogleUser: true // Add this field to identify Google users
         });
     }
+   
+    // Update last login time
+    user.lastLogin = new Date();
+    await user.save({ validateBeforeSave: false });
    
     // Create token
     const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
