@@ -7,6 +7,7 @@ import { z } from "zod"
 import { Link, useNavigate } from "react-router-dom"
 import { showTost } from '../utils/toast.js'
 import GoogleLogin from './GoogleLogin.jsx'
+import { useAuth } from '../hooks/useAuth'
 
 const loginSchema = z.object({
   emailOrUsername: z.string().min(1, "Email or username is required"),
@@ -18,6 +19,7 @@ export function LoginForm({
   ...props
 }) {
   const navigate = useNavigate()
+  const { login } = useAuth()
   const [formData, setFormData] = useState({ emailOrUsername: "", password: "" })
   const [errors, setErrors] = useState({})
 
@@ -38,13 +40,12 @@ export function LoginForm({
         loginData.email = formData.emailOrUsername
       } else {
         loginData.username = formData.emailOrUsername
-      }
-
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}users/login`, {
+      }      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}users/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
+        credentials: 'include', // Important for cookies
         body: JSON.stringify(loginData)
       })
 
@@ -52,11 +53,20 @@ export function LoginForm({
       if (!response.ok) {
         showTost(data.message, "error")
         return
+      }        // Validate that we received proper authentication data
+      if (data.data && data.data.accessToken && data.data.user) {
+        // Use auth context to properly set user state
+        login(data.data.user, data.data.accessToken)
+        
+        showTost(data.message || "Login successful", "success")
+        
+        // Add a small delay to ensure Redux state is updated before navigation
+        setTimeout(() => {
+          navigate("/", { replace: true })
+        }, 100)
+      } else {
+        showTost("Login failed - incomplete response", "error")
       }
-      
-      // Store tokens if needed (you might want to use a context or localStorage)
-      navigate("/", { replace: true })
-      showTost(data.message || "Login successful", "success")
       
     } catch (error) {
       if (error instanceof z.ZodError) {
