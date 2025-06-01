@@ -2,6 +2,7 @@ import asyncHandler  from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { User } from "../models/UserModel.js";
+import { Category } from "../models/CategoryModel.js";
 
 // @desc    Get admin overview statistics
 // @route   GET /api/admin/overview
@@ -35,14 +36,12 @@ const getOverviewStats = asyncHandler(async (req, res) => {
         const totalUsersLastMonth = totalUsers - newUsersThisMonth;
         const growthRate = totalUsersLastMonth > 0 
             ? ((newUsersThisMonth / totalUsersLastMonth) * 100).toFixed(1)
-            : 0;
-
-        // For now, we'll set post-related stats to 0 since we don't have a Post model yet
-        // These can be updated when the Post model is implemented
+            : 0;        // Get total categories count
+        const totalCategories = await Category.countDocuments({ isVisible: true });
         const stats = {
             totalUsers,
             totalPosts: 0, // TODO: Implement when Post model is ready
-            totalCategories: 0, // TODO: Implement when Category model is ready
+            totalCategories,
             totalComments: 0, // TODO: Implement when Comment model is ready
             activeUsers,
             totalViews: 0, // TODO: Implement when analytics are added
@@ -203,12 +202,44 @@ const banUser = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 const getAllCategories = asyncHandler(async (req, res) => {
     try {
-        // TODO: Implement when Category model is ready
-        // For now, return empty array
-        const categories = [];
+        const { page = 1, limit = 10, search = '', sortBy = 'name', sortOrder = 'asc' } = req.query;
+        
+        // Build search query
+        let query = {};
+        if (search) {
+            query = {
+                $or: [
+                    { name: { $regex: search, $options: 'i' } },
+                    { description: { $regex: search, $options: 'i' } }
+                ]
+            };
+        }
+        
+        // Build sort object
+        const sort = {};
+        sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+        
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        
+        const categories = await Category.find(query)
+            .populate('parentCategory', 'name slug')
+            .populate('createdBy', 'fullName username')
+            .populate('updatedBy', 'fullName username')
+            .sort(sort)
+            .skip(skip)
+            .limit(parseInt(limit));
+        
+        const totalCategories = await Category.countDocuments(query);
         
         return res.status(200).json(
-            new ApiResponse(200, categories, "Categories retrieved successfully")
+            new ApiResponse(200, {
+                categories,
+                totalCategories,
+                currentPage: parseInt(page),
+                totalPages: Math.ceil(totalCategories / parseInt(limit)),
+                hasNextPage: skip + categories.length < totalCategories,
+                hasPrevPage: parseInt(page) > 1
+            }, "Categories retrieved successfully")
         );
         
     } catch (error) {
@@ -308,6 +339,275 @@ const createUser = asyncHandler(async (req, res) => {
     }
 });
 
+// @desc    Create new category
+// @route   POST /api/admin/categories
+// @access  Private/Admin
+const createCategory = asyncHandler(async (req, res) => {
+    try {
+        const { name, description, color, icon, parentCategory, isVisible = true } = req.body;
+        
+        console.log('Received category data:', req.body);
+        
+        // Validation
+        if (!name || name.trim().length === 0) {
+            throw new ApiError(400, "Category name is required");
+        }
+        
+        if (name.trim().length > 50) {
+            throw new ApiError(400, "Category name cannot exceed 50 characters");
+        }
+        
+        if (description && description.length > 500) {
+            throw new ApiError(400, "Description cannot exceed 500 characters");
+        }
+        
+        // Check if category name already exists
+        const existingCategory = await Category.findOne({ 
+            name: { $regex: new RegExp(`^${name.trim()}$`, 'i') } 
+        });
+        
+        if (existingCategory) {
+            throw new ApiError(409, "Category with this name already exists");
+        }
+        
+        // Validate parent category if provided
+        if (parentCategory && parentCategory !== '') {
+            const parent = await Category.findById(parentCategory);
+            if (!parent) {
+                throw new ApiError(404, "Parent category not found");
+            }
+        }
+        
+        // Create category
+        const newCategory = await Category.create({
+            name: name.trim(),
+            description: description?.trim() || '',
+            color: color || '#3B82F6',
+            icon: icon || 'Hash',
+            parentCategory: parentCategory && parentCategory !== '' ? parentCategory : null,
+            isVisible,
+            createdBy: req.user._id,
+            updatedBy: req.user._id
+        });
+        
+        await newCategory.populate('parentCategory', 'name slug');
+        await newCategory.populate('createdBy', 'fullName username');
+        
+        return res.status(201).json(
+            new ApiResponse(201, newCategory, "Category created successfully")
+        );
+        
+    } catch (error) {
+        console.error("Error in createCategory:", error);
+        if (error instanceof ApiError) {
+            throw error;
+        }
+        throw new ApiError(500, "Error creating category");
+    }
+});
+
+// @desc    Update category
+// @route   PUT /api/admin/categories/:id
+// @access  Private/Admin
+const updateCategory = asyncHandler(async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, description, color, icon, parentCategory, isVisible } = req.body;
+        
+        // Find category
+        const category = await Category.findById(id);
+        if (!category) {
+            throw new ApiError(404, "Category not found");
+        }
+        
+        // Validation
+        if (name && name.trim().length === 0) {
+            throw new ApiError(400, "Category name cannot be empty");
+        }
+        
+        if (name && name.trim().length > 50) {
+            throw new ApiError(400, "Category name cannot exceed 50 characters");
+        }
+        
+        if (description && description.length > 500) {
+            throw new ApiError(400, "Description cannot exceed 500 characters");
+        }
+        
+        // Check if new name conflicts with existing categories
+        if (name && name.trim() !== category.name) {
+            const existingCategory = await Category.findOne({ 
+                name: { $regex: new RegExp(`^${name.trim()}$`, 'i') },
+                _id: { $ne: id }
+            });
+            
+            if (existingCategory) {
+                throw new ApiError(409, "Category with this name already exists");
+            }
+        }
+        
+        // Validate parent category if provided
+        if (parentCategory && parentCategory !== '' && parentCategory !== id) {
+            const parent = await Category.findById(parentCategory);
+            if (!parent) {
+                throw new ApiError(404, "Parent category not found");
+            }
+            
+            // Check for circular reference
+            if (parentCategory === id) {
+                throw new ApiError(400, "Category cannot be its own parent");
+            }
+        }
+        
+        // Update fields
+        if (name) category.name = name.trim();
+        if (description !== undefined) category.description = description.trim();
+        if (color) category.color = color;
+        if (icon) category.icon = icon;
+        if (parentCategory !== undefined) {
+            category.parentCategory = parentCategory && parentCategory !== '' ? parentCategory : null;
+        }
+        if (isVisible !== undefined) category.isVisible = isVisible;
+        category.updatedBy = req.user._id;
+        
+        await category.save();
+        await category.populate('parentCategory', 'name slug');
+        await category.populate('updatedBy', 'fullName username');
+        
+        return res.status(200).json(
+            new ApiResponse(200, category, "Category updated successfully")
+        );
+        
+    } catch (error) {
+        console.error("Error in updateCategory:", error);
+        if (error instanceof ApiError) {
+            throw error;
+        }
+        throw new ApiError(500, "Error updating category");
+    }
+});
+
+// @desc    Delete category
+// @route   DELETE /api/admin/categories/:id
+// @access  Private/Admin
+const deleteCategory = asyncHandler(async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Find category
+        const category = await Category.findById(id);
+        if (!category) {
+            throw new ApiError(404, "Category not found");
+        }
+        
+        // Check if category has child categories
+        const childCategories = await Category.countDocuments({ parentCategory: id });
+        if (childCategories > 0) {
+            throw new ApiError(400, "Cannot delete category that has child categories. Please delete or reassign child categories first.");
+        }
+        
+        // TODO: Check if category has posts when Post model is implemented
+        // if (category.postCount > 0) {
+        //     throw new ApiError(400, "Cannot delete category that has posts. Please move or delete posts first.");
+        // }
+        
+        await Category.findByIdAndDelete(id);
+        
+        return res.status(200).json(
+            new ApiResponse(200, null, "Category deleted successfully")
+        );
+        
+    } catch (error) {
+        console.error("Error in deleteCategory:", error);
+        if (error instanceof ApiError) {
+            throw error;
+        }
+        throw new ApiError(500, "Error deleting category");
+    }
+});
+
+// @desc    Toggle category visibility
+// @route   PUT /api/admin/categories/:id/visibility
+// @access  Private/Admin
+const toggleCategoryVisibility = asyncHandler(async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const category = await Category.findById(id);
+        if (!category) {
+            throw new ApiError(404, "Category not found");
+        }
+        
+        category.isVisible = !category.isVisible;
+        category.updatedBy = req.user._id;
+        await category.save();
+        
+        return res.status(200).json(
+            new ApiResponse(200, category, `Category ${category.isVisible ? 'shown' : 'hidden'} successfully`)
+        );
+        
+    } catch (error) {
+        console.error("Error in toggleCategoryVisibility:", error);
+        if (error instanceof ApiError) {
+            throw error;
+        }
+        throw new ApiError(500, "Error toggling category visibility");
+    }
+});
+
+// @desc    Bulk delete categories
+// @route   DELETE /api/admin/categories/bulk
+// @access  Private/Admin
+const bulkDeleteCategories = asyncHandler(async (req, res) => {
+    try {
+        const { categoryIds } = req.body;
+        
+        if (!categoryIds || !Array.isArray(categoryIds) || categoryIds.length === 0) {
+            throw new ApiError(400, "Category IDs are required");
+        }
+        
+        // Check if any categories have child categories
+        const childCategoriesCount = await Category.countDocuments({ 
+            parentCategory: { $in: categoryIds } 
+        });
+        
+        if (childCategoriesCount > 0) {
+            throw new ApiError(400, "Cannot delete categories that have child categories");
+        }
+        
+        // TODO: Check if categories have posts when Post model is implemented
+        
+        const result = await Category.deleteMany({ _id: { $in: categoryIds } });
+        
+        return res.status(200).json(
+            new ApiResponse(200, { deletedCount: result.deletedCount }, `${result.deletedCount} categories deleted successfully`)
+        );
+        
+    } catch (error) {
+        console.error("Error in bulkDeleteCategories:", error);
+        if (error instanceof ApiError) {
+            throw error;
+        }
+        throw new ApiError(500, "Error deleting categories");
+    }
+});
+
+// @desc    Get category hierarchy
+// @route   GET /api/admin/categories/hierarchy
+// @access  Private/Admin
+const getCategoryHierarchy = asyncHandler(async (req, res) => {
+    try {
+        const hierarchy = await Category.getHierarchy();
+        
+        return res.status(200).json(
+            new ApiResponse(200, hierarchy, "Category hierarchy retrieved successfully")
+        );
+        
+    } catch (error) {
+        console.error("Error in getCategoryHierarchy:", error);
+        throw new ApiError(500, "Error retrieving category hierarchy");
+    }
+});
+
 export {
     getOverviewStats,
     getAllUsers,
@@ -316,5 +616,11 @@ export {
     getAllCategories,
     getAllComments,
     deleteComment,
-    createUser
+    createUser,
+    createCategory,
+    updateCategory,
+    deleteCategory,
+    toggleCategoryVisibility,
+    bulkDeleteCategories,
+    getCategoryHierarchy
 };

@@ -6,6 +6,12 @@ import {
     updateUserRole,
     banUser,
     getAllCategories,
+    createCategory,
+    updateCategory,
+    deleteCategory,
+    toggleCategoryVisibility,
+    bulkDeleteCategories,
+    getCategoryHierarchy,
     getAllComments,
     deleteComment
 } from "../controllers/AdminController.js";
@@ -35,6 +41,12 @@ router.route("/users/:userId/ban").put(verifyJWT, requireAdmin, banUser);
 
 // Category management routes
 router.route("/categories").get(verifyJWT, requireAdmin, getAllCategories);
+router.route("/categories").post(verifyJWT, requireAdmin, createCategory);
+router.route("/categories/bulk").delete(verifyJWT, requireAdmin, bulkDeleteCategories);
+router.route("/categories/hierarchy").get(verifyJWT, requireAdmin, getCategoryHierarchy);
+router.route("/categories/:id").put(verifyJWT, requireAdmin, updateCategory);
+router.route("/categories/:id").delete(verifyJWT, requireAdmin, deleteCategory);
+router.route("/categories/:id/visibility").put(verifyJWT, requireAdmin, toggleCategoryVisibility);
 
 // Comment management routes
 router.route("/comments").get(verifyJWT, requireAdmin, getAllComments);

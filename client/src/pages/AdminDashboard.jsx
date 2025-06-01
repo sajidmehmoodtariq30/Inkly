@@ -19,6 +19,7 @@ import { Link } from 'react-router-dom'
 import logo from '../assets/logo.png'
 import OverviewPage from '../components/admin/OverviewPage'
 import UserManagement from '../components/admin/UserManagement'
+import CategoryManagement from '../components/admin/CategoryManagement'
 
 const AdminDashboard = () => {
   const [activePage, setActivePage] = useState('overview')
@@ -35,12 +36,11 @@ const AdminDashboard = () => {
       label: 'User Management',
       icon: Users,
       component: <UserManagement />
-    },
-    {
+    },    {
       id: 'categories',
       label: 'Categories',
       icon: Tags,
-      component: <CategoriesPage />
+      component: <CategoryManagement />
     },
     {
       id: 'comments',
@@ -169,60 +169,6 @@ const AdminDashboard = () => {
 }
 
 // Empty page components - structure only
-const CategoriesPage = () => (
-  <div className="space-y-6">
-    <div className="flex justify-between items-center">
-      <div>
-        <h3 className="text-lg font-semibold">Categories Management</h3>
-        <p className="text-gray-600">Create, edit, and manage post categories</p>
-      </div>
-      <Button>Add New Category</Button>
-    </div>
-
-    <Card>
-      <CardHeader>
-        <CardTitle>All Categories</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="flex space-x-4">
-            <input
-              type="text"
-              placeholder="Search categories..."
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <select className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option>All Status</option>
-              <option>Active</option>
-              <option>Inactive</option>
-            </select>
-          </div>
-          
-          <div className="border rounded-lg">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Name</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Description</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Posts Count</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Status</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
-                    No categories found. Category management functionality will be implemented here.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  </div>
-)
 
 const CommentsPage = () => (
   <div className="space-y-6">
