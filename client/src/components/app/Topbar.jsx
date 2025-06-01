@@ -3,7 +3,7 @@ import { SidebarTrigger, useSidebar } from '../ui/sidebar'
 import logo from '../../assets/logo.png'
 import { Button } from '../ui/button'
 import { Link } from 'react-router-dom'
-import { LogInIcon, UserIcon, LogOutIcon } from 'lucide-react'
+import { LogInIcon, LogOutIcon } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import Searchbox from './Searchbox'
 

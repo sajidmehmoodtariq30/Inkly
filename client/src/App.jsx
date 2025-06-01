@@ -10,29 +10,34 @@ import AppLayout from './layout/AppLayout'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import Profile from './pages/Profile'
 
 
 const App = () => {
   return (
-    <Provider store={store}><BrowserRouter>
+    <Provider store={store}>
+      <BrowserRouter>
         <Routes>
           <Route path="/login" element={
             <PublicRoute>
               <Login />
             </PublicRoute>
-          } />
+          }
+          />
           <Route path="/register" element={
             <PublicRoute>
               <Register />
             </PublicRoute>
-          } />
-          <Route path="/" element={
-            <ProtectedRoute>
-              <AppLayout />
-            </ProtectedRoute>
-          }>
+          }
+          />
+          <Route path="/" element={<AppLayout />}>
             <Route index element={<Home />} />
           </Route>
+          <Route path="profile" element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          } />
         </Routes>
         <ToastContainer
           position="top-right"
@@ -46,10 +51,10 @@ const App = () => {
           pauseOnHover
           theme="light"
           className="mt-20"
-          style={{ 
+          style={{
             zIndex: 9999 // Higher than navbar's z-50
           }}
-          toastClassName="relative flex p-1 min-h-10 rounded-md justify-between overflow-hidden cursor-pointer"        />
+          toastClassName="relative flex p-1 min-h-10 rounded-md justify-between overflow-hidden cursor-pointer" />
       </BrowserRouter>
     </Provider>
   )
