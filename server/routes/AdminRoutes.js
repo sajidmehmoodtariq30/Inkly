@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
     getOverviewStats,
     getAllUsers,
+    createUser,
     updateUserRole,
     banUser,
     getAllCategories,
@@ -24,10 +25,11 @@ const requireAdmin = (req, res, next) => {
 };
 
 // Overview routes
-router.route("/overview").get(getOverviewStats); // Temporarily removed auth for testing
+router.route("/overview").get(verifyJWT, requireAdmin, getOverviewStats);
 
 // User management routes
 router.route("/users").get(verifyJWT, requireAdmin, getAllUsers);
+router.route("/users").post(verifyJWT, requireAdmin, createUser);
 router.route("/users/:userId/role").put(verifyJWT, requireAdmin, updateUserRole);
 router.route("/users/:userId/ban").put(verifyJWT, requireAdmin, banUser);
 

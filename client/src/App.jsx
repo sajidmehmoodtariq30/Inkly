@@ -6,6 +6,7 @@ import { Provider } from 'react-redux'
 import { store } from './redux/store'
 import ProtectedRoute from './components/ProtectedRoute'
 import PublicRoute from './components/PublicRoute'
+import AdminRoute from './components/AdminRoute'
 import AppLayout from './layout/AppLayout'
 import Home from './pages/Home'
 import Login from './pages/Login'
@@ -38,11 +39,10 @@ const App = () => {
             <ProtectedRoute>
               <Profile />
             </ProtectedRoute>
-          } />
-          <Route path="/admin" element={
-            <ProtectedRoute>
+          } />          <Route path="/admin" element={
+            <AdminRoute>
               <AdminDashboard />
-            </ProtectedRoute>
+            </AdminRoute>
           } />
         </Routes>
         <ToastContainer

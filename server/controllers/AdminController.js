@@ -76,13 +76,21 @@ const getOverviewStats = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 const getAllUsers = asyncHandler(async (req, res) => {
     try {
-        const { page = 1, limit = 10, role, search } = req.query;
+        const { page = 1, limit = 10, role, search, status } = req.query;
         
         // Build query
         let query = {};
         
         if (role && role !== 'all') {
             query.role = role;
+        }
+        
+        if (status && status !== 'all') {
+            if (status === 'banned') {
+                query.banned = true;
+            } else if (status === 'active') {
+                query.banned = { $ne: true };
+            }
         }
         
         if (search) {
@@ -247,6 +255,59 @@ const deleteComment = asyncHandler(async (req, res) => {
     }
 });
 
+// @desc    Create new user (Admin only)
+// @route   POST /api/admin/users
+// @access  Private/Admin
+const createUser = asyncHandler(async (req, res) => {
+    try {
+        const { fullName, username, email, password, role = 'user' } = req.body;
+        
+        // Validate required fields
+        if (!fullName || !username || !email || !password) {
+            throw new ApiError(400, "All fields are required");
+        }
+        
+        // Validate role
+        if (!['user', 'writer', 'admin'].includes(role)) {
+            throw new ApiError(400, "Invalid role specified");
+        }
+        
+        // Check if user already exists
+        const existingUser = await User.findOne({
+            $or: [{ email }, { username: username.toLowerCase() }]
+        });
+        
+        if (existingUser) {
+            throw new ApiError(409, "User with this email or username already exists");
+        }
+        
+        // Create user with default avatar
+        const newUser = await User.create({
+            fullName: fullName.trim(),
+            username: username.toLowerCase().trim(),
+            email: email.toLowerCase().trim(),
+            password,
+            role,
+            avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=6366f1&color=ffffff&size=200`,
+            signupSource: 'admin'
+        });
+        
+        // Remove password from response
+        const userResponse = await User.findById(newUser._id).select('-password -refreshToken');
+        
+        return res.status(201).json(
+            new ApiResponse(201, userResponse, "User created successfully")
+        );
+        
+    } catch (error) {
+        console.error("Error in createUser:", error);
+        if (error instanceof ApiError) {
+            throw error;
+        }
+        throw new ApiError(500, "Error creating user");
+    }
+});
+
 export {
     getOverviewStats,
     getAllUsers,
@@ -254,5 +315,6 @@ export {
     banUser,
     getAllCategories,
     getAllComments,
-    deleteComment
+    deleteComment,
+    createUser
 };

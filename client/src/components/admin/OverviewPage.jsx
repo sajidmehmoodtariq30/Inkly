@@ -11,8 +11,7 @@ import {
   UserCheck
 } from 'lucide-react'
 
-const OverviewPage = () => {
-  const [stats, setStats] = useState({
+const OverviewPage = () => {  const [stats, setStats] = useState({
     totalUsers: 0,
     totalPosts: 0,
     totalCategories: 0,
@@ -25,14 +24,17 @@ const OverviewPage = () => {
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  
   useEffect(() => {
     fetchOverviewData()
   }, [])
+  
   const fetchOverviewData = async () => {
     try {
       setLoading(true)
-      // For testing, let's try without authentication first
       const response = await fetch('/api/v1/admin/overview', {
+        method: 'GET',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         }

@@ -18,11 +18,11 @@ import {
 import { Link } from 'react-router-dom'
 import logo from '../assets/logo.png'
 import OverviewPage from '../components/admin/OverviewPage'
+import UserManagement from '../components/admin/UserManagement'
 
 const AdminDashboard = () => {
   const [activePage, setActivePage] = useState('overview')
   const [sidebarOpen, setSidebarOpen] = useState(true)
-
   const sidebarItems = [
     {
       id: 'overview',
@@ -34,7 +34,7 @@ const AdminDashboard = () => {
       id: 'users',
       label: 'User Management',
       icon: Users,
-      component: <UserManagementPage />
+      component: <UserManagement />
     },
     {
       id: 'categories',
@@ -169,62 +169,6 @@ const AdminDashboard = () => {
 }
 
 // Empty page components - structure only
-const UserManagementPage = () => (
-  <div className="space-y-6">
-    <div className="flex justify-between items-center">
-      <div>
-        <h3 className="text-lg font-semibold">User Management</h3>
-        <p className="text-gray-600">Manage users, roles, and permissions</p>
-      </div>
-      <Button>Add New User</Button>
-    </div>
-
-    <Card>
-      <CardHeader>
-        <CardTitle>All Users</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="flex space-x-4">
-            <input
-              type="text"
-              placeholder="Search users..."
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <select className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option>All Roles</option>
-              <option>Admin</option>
-              <option>User</option>
-              <option>Moderator</option>
-            </select>
-          </div>
-          
-          <div className="border rounded-lg">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">User</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Email</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Role</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Status</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
-                    No users found. User management functionality will be implemented here.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  </div>
-)
-
 const CategoriesPage = () => (
   <div className="space-y-6">
     <div className="flex justify-between items-center">
