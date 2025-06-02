@@ -1,7 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
 import { Badge } from '../ui/badge'
+import { Input } from '../ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { 
   Calendar, 
   Plus, 
@@ -10,310 +12,471 @@ import {
   Eye,
   ChevronLeft,
   ChevronRight,
-  Filter
+  Filter,
+  Search,
+  MoreHorizontal,
+  Loader2,
+  AlertTriangle,
+  CheckCircle
 } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Link } from 'react-router-dom'
+import { useApi } from '../../hooks/useApi'
+import { toast } from '../../utils/toast'
 
 const WriterSchedule = () => {
+  const { get, put } = useApi()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [view, setView] = useState('month') // month, week, day
+  const [articles, setArticles] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [actionLoading, setActionLoading] = useState({})
 
-  // Mock data - replace with real data later
-  const scheduledContent = [
-    {
-      id: 1,
-      title: "React Best Practices Guide",
-      type: "article",
-      status: "scheduled",
-      publishDate: "2025-06-05T10:00:00Z",
-      category: "Technology",
-      estimatedReadTime: 8
-    },
-    {
-      id: 2,
-      title: "JavaScript ES2025 Features",
-      type: "article",
-      status: "draft",
-      publishDate: "2025-06-07T14:00:00Z",
-      category: "JavaScript",
-      estimatedReadTime: 6
-    },
-    {
-      id: 3,
-      title: "Web Performance Optimization",
-      type: "article",
-      status: "scheduled",
-      publishDate: "2025-06-10T09:00:00Z",
-      category: "Web Development",
-      estimatedReadTime: 12
-    },
-    {
-      id: 4,
-      title: "Node.js Security Best Practices",
-      type: "article",
-      status: "review",
-      publishDate: "2025-06-12T11:00:00Z",
-      category: "Backend",
-      estimatedReadTime: 10
+  useEffect(() => {
+    fetchScheduledContent()
+  }, [currentDate, view])
+
+  const fetchScheduledContent = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      // Get articles with scheduled publish dates or in review status
+      const params = new URLSearchParams({
+        limit: '50',
+        status: 'review,scheduled',
+        sort: 'publishedAt'
+      })
+      
+      if (searchTerm) {
+        params.append('search', searchTerm)
+      }
+      
+      const response = await get(`${import.meta.env.VITE_API_BASE_URL}writer/articles?${params}`)
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch scheduled content')
+      }
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setArticles(data.data.articles)
+      } else {
+        throw new Error(data.message || 'Failed to fetch scheduled content')
+      }
+    } catch (error) {
+      console.error('Scheduled content fetch error:', error)
+      setError(error.message)
+    } finally {
+      setLoading(false)
     }
-  ]
+  }
+
+  const handleScheduleUpdate = async (articleId, newStatus, publishDate = null) => {
+    try {
+      setActionLoading(prev => ({ ...prev, [articleId]: true }))
+      
+      const updateData = { status: newStatus }
+      if (publishDate) {
+        updateData.publishedAt = publishDate
+      }
+      
+      const response = await put(`${import.meta.env.VITE_API_BASE_URL}writer/articles/${articleId}`, updateData)
+      
+      if (!response.ok) {
+        throw new Error('Failed to update schedule')
+      }
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        toast.success('Schedule updated successfully')
+        fetchScheduledContent() // Refresh the list
+      } else {
+        throw new Error(data.message)
+      }
+    } catch (error) {
+      toast.error(error.message || 'Failed to update schedule')
+    } finally {
+      setActionLoading(prev => ({ ...prev, [articleId]: false }))
+    }
+  }
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'scheduled':
-        return 'bg-green-100 text-green-800'
-      case 'draft':
-        return 'bg-yellow-100 text-yellow-800'
-      case 'review':
-        return 'bg-blue-100 text-blue-800'
-      case 'published':
-        return 'bg-purple-100 text-purple-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
+      case 'scheduled': return 'bg-blue-100 text-blue-800'
+      case 'review': return 'bg-yellow-100 text-yellow-800'
+      case 'published': return 'bg-green-100 text-green-800'
+      case 'draft': return 'bg-gray-100 text-gray-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'scheduled': return <Clock className="w-4 h-4" />
+      case 'review': return <AlertTriangle className="w-4 h-4" />
+      case 'published': return <CheckCircle className="w-4 h-4" />
+      default: return <Edit className="w-4 h-4" />
     }
   }
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    })
-  }
-
-  const formatTime = (dateString) => {
-    const date = new Date(dateString)
-    return date.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    })
-  }
-
-  const getDaysInMonth = (date) => {
-    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
-  }
-
-  const getFirstDayOfMonth = (date) => {
-    return new Date(date.getFullYear(), date.getMonth(), 1).getDay()
-  }
-
-  const navigateMonth = (direction) => {
-    const newDate = new Date(currentDate)
-    newDate.setMonth(currentDate.getMonth() + direction)
-    setCurrentDate(newDate)
-  }
-
-  const getCurrentMonthName = () => {
-    return currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-  }
-
-  const getContentForDate = (day) => {
-    const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
-    const dateString = date.toISOString().split('T')[0]
+    if (!dateString) return 'Not scheduled'
     
-    return scheduledContent.filter(content => {
-      const contentDate = new Date(content.publishDate).toISOString().split('T')[0]
-      return contentDate === dateString
-    })
-  }
-
-  const renderCalendarGrid = () => {
-    const daysInMonth = getDaysInMonth(currentDate)
-    const firstDay = getFirstDayOfMonth(currentDate)
-    const days = []
+    const date = new Date(dateString)
+    const now = new Date()
+    const isToday = date.toDateString() === now.toDateString()
+    const isTomorrow = date.toDateString() === new Date(now.getTime() + 24 * 60 * 60 * 1000).toDateString()
     
-    // Empty cells for days before the first day of the month
-    for (let i = 0; i < firstDay; i++) {
-      days.push(<div key={`empty-${i}`} className="h-32 border border-gray-200"></div>)
+    if (isToday) {
+      return `Today at ${date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
+    } else if (isTomorrow) {
+      return `Tomorrow at ${date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
+    } else {
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
     }
+  }
+
+  const isOverdue = (publishDate) => {
+    if (!publishDate) return false
+    return new Date(publishDate) < new Date()
+  }
+
+  const getCalendarDays = () => {
+    const year = currentDate.getFullYear()
+    const month = currentDate.getMonth()
+    const firstDay = new Date(year, month, 1)
+    const lastDay = new Date(year, month + 1, 0)
+    const startDate = new Date(firstDay)
+    startDate.setDate(startDate.getDate() - firstDay.getDay())
     
-    // Days of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dayContent = getContentForDate(day)
-      const isToday = new Date().toDateString() === new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString()
+    const days = []
+    for (let i = 0; i < 42; i++) {
+      const day = new Date(startDate)
+      day.setDate(startDate.getDate() + i)
       
-      days.push(
-        <div key={day} className={`h-32 border border-gray-200 p-2 ${isToday ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-          <div className={`text-sm font-medium mb-2 ${isToday ? 'text-blue-600' : 'text-gray-900'}`}>
-            {day}
-          </div>
-          <div className="space-y-1">
-            {dayContent.map(content => (
-              <div key={content.id} className="text-xs p-1 rounded bg-blue-100 text-blue-800 truncate">
-                {content.title}
-              </div>
-            ))}
-          </div>
-        </div>
-      )
+      const dayArticles = articles.filter(article => {
+        if (!article.publishedAt) return false
+        const articleDate = new Date(article.publishedAt)
+        return articleDate.toDateString() === day.toDateString()
+      })
+      
+      days.push({
+        date: day,
+        isCurrentMonth: day.getMonth() === month,
+        isToday: day.toDateString() === new Date().toDateString(),
+        articles: dayArticles
+      })
     }
     
     return days
   }
 
+  const handleSearch = (e) => {
+    e.preventDefault()
+    fetchScheduledContent()
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-6 h-6 animate-spin mr-2" />
+          <span>Loading schedule...</span>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="container mx-auto px-4 py-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Content Calendar</h1>
-          <p className="text-muted-foreground">Plan and schedule your content</p>
+          <h2 className="text-2xl font-bold">Content Schedule</h2>
+          <p className="text-muted-foreground">Manage your publishing schedule and upcoming content</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline">
-            <Filter className="h-4 w-4 mr-2" />
-            Filter
-          </Button>
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Schedule Post
-          </Button>
-        </div>
-      </div>
-
-      {/* View Toggle */}
-      <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
-          {['month', 'week', 'day'].map((viewType) => (
-            <Button
-              key={viewType}
-              variant={view === viewType ? 'default' : 'outline'}
-              onClick={() => setView(viewType)}
-              className="capitalize"
-            >
-              {viewType}
-            </Button>
-          ))}
-        </div>
-        
-        <div className="flex items-center gap-4">
-          <Button variant="outline" size="sm" onClick={() => navigateMonth(-1)}>
-            <ChevronLeft className="h-4 w-4" />
+          <Button variant="outline" onClick={() => setView(view === 'month' ? 'list' : 'month')}>
+            {view === 'month' ? 'List View' : 'Calendar View'}
           </Button>
-          <h2 className="text-lg font-semibold min-w-[200px] text-center">
-            {getCurrentMonthName()}
-          </h2>
-          <Button variant="outline" size="sm" onClick={() => navigateMonth(1)}>
-            <ChevronRight className="h-4 w-4" />
+          <Button asChild>
+            <Link to="/writer/write">
+              <Plus className="h-4 w-4 mr-2" />
+              New Article
+            </Link>
           </Button>
         </div>
-        
-        <Button variant="outline" onClick={() => setCurrentDate(new Date())}>
-          Today
-        </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Calendar */}
-        <div className="lg:col-span-3">
-          <Card>
-            <CardHeader>
-              <CardTitle>Calendar View</CardTitle>
-              <CardDescription>Your content publishing schedule</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {/* Calendar Header */}
-              <div className="grid grid-cols-7 gap-1 mb-2">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                  <div key={day} className="text-center text-sm font-medium text-gray-500 py-2">
-                    {day}
-                  </div>
-                ))}
-              </div>
-              
-              {/* Calendar Grid */}
-              <div className="grid grid-cols-7 gap-1">
-                {renderCalendarGrid()}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <form onSubmit={handleSearch} className="flex flex-1 gap-2">
+              <Input
+                placeholder="Search articles..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="flex-1"
+              />
+              <Button type="submit" variant="outline">
+                <Search className="h-4 w-4" />
+              </Button>
+            </form>
+            
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="scheduled">Scheduled</SelectItem>
+                <SelectItem value="review">In Review</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Upcoming Content */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Upcoming Content</CardTitle>
-              <CardDescription>Next scheduled posts</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {scheduledContent
-                .filter(content => new Date(content.publishDate) > new Date())
-                .sort((a, b) => new Date(a.publishDate) - new Date(b.publishDate))
-                .slice(0, 5)
-                .map(content => (
-                  <div key={content.id} className="border-l-4 border-blue-500 pl-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-sm line-clamp-2 mb-1">
-                          {content.title}
-                        </h4>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Calendar className="h-3 w-3" />
-                          <span>{formatDate(content.publishDate)}</span>
-                          <Clock className="h-3 w-3 ml-2" />
-                          <span>{formatTime(content.publishDate)}</span>
-                        </div>
-                        <Badge className={`${getStatusColor(content.status)} text-xs mt-2`}>
-                          {content.status}
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="pt-6">
+            <p className="text-red-800">{error}</p>
+            <Button 
+              variant="outline" 
+              onClick={fetchScheduledContent}
+              className="mt-2"
+            >
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {view === 'month' ? (
+        /* Calendar View */
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>
+                {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentDate(new Date())}
+                >
+                  Today
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-7 gap-1 mb-4">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                <div key={day} className="p-2 text-center text-sm font-medium text-muted-foreground">
+                  {day}
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+              {getCalendarDays().map((day, index) => (
+                <div
+                  key={index}
+                  className={`
+                    min-h-[80px] p-2 border rounded-lg transition-colors
+                    ${day.isCurrentMonth ? 'bg-white' : 'bg-gray-50'}
+                    ${day.isToday ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}
+                  `}
+                >
+                  <div className={`text-sm font-medium mb-1 ${day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}`}>
+                    {day.date.getDate()}
+                  </div>
+                  <div className="space-y-1">
+                    {day.articles.slice(0, 2).map(article => (
+                      <div
+                        key={article.id}
+                        className={`
+                          text-xs p-1 rounded truncate
+                          ${article.status === 'scheduled' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'}
+                          ${isOverdue(article.publishedAt) ? 'bg-red-100 text-red-800' : ''}
+                        `}
+                        title={article.title}
+                      >
+                        {article.title}
+                      </div>
+                    ))}
+                    {day.articles.length > 2 && (
+                      <div className="text-xs text-muted-foreground">
+                        +{day.articles.length - 2} more
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        /* List View */
+        <div className="space-y-4">
+          {articles.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center py-12">
+                  <Calendar className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">No scheduled content</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Schedule your articles for future publication to maintain a consistent posting schedule.
+                  </p>
+                  <Button asChild className="mt-4">
+                    <Link to="/writer/write">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Article
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            articles.map((article) => (
+              <Card key={article.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="pt-6">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="font-semibold text-lg truncate">{article.title}</h3>
+                        <Badge variant="secondary" className={getStatusColor(article.status)}>
+                          {getStatusIcon(article.status)}
+                          <span className="ml-1">{article.status}</span>
                         </Badge>
+                        {isOverdue(article.publishedAt) && (
+                          <Badge variant="destructive">
+                            Overdue
+                          </Badge>
+                        )}
+                      </div>
+                      
+                      {article.excerpt && (
+                        <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
+                          {article.excerpt}
+                        </p>
+                      )}
+                      
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-4 w-4" />
+                          <span>{formatDate(article.publishedAt)}</span>
+                        </div>
+                        {article.category && (
+                          <div className="flex items-center gap-1">
+                            <span>in</span>
+                            <Badge variant="outline">{article.category.name}</Badge>
+                          </div>
+                        )}
+                        {article.readingTime && (
+                          <div className="flex items-center gap-1">
+                            <span>{article.readingTime} min read</span>
+                          </div>
+                        )}
                       </div>
                     </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={`/writer/edit/${article.id}`}>
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
+                        </Link>
+                      </Button>
+                      
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            disabled={actionLoading[article.id]}
+                          >
+                            {actionLoading[article.id] ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <MoreHorizontal className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Schedule Actions</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          
+                          {article.status === 'review' && (
+                            <DropdownMenuItem
+                              onClick={() => handleScheduleUpdate(article.id, 'published')}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Publish Now
+                            </DropdownMenuItem>
+                          )}
+                          
+                          {article.status === 'scheduled' && (
+                            <DropdownMenuItem
+                              onClick={() => handleScheduleUpdate(article.id, 'draft')}
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Move to Draft
+                            </DropdownMenuItem>
+                          )}
+                          
+                          <DropdownMenuItem
+                            onClick={() => handleScheduleUpdate(article.id, 'review')}
+                          >
+                            <AlertTriangle className="h-4 w-4 mr-2" />
+                            Submit for Review
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
-                ))}
-            </CardContent>
-          </Card>
-
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button className="w-full justify-start">
-                <Plus className="h-4 w-4 mr-2" />
-                Schedule New Post
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
-                <Edit className="h-4 w-4 mr-2" />
-                Edit Schedule
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
-                <Eye className="h-4 w-4 mr-2" />
-                Preview Calendar
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Publishing Stats */}
-          <Card>
-            <CardHeader>
-              <CardTitle>This Month</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Scheduled</span>
-                <span className="font-medium">
-                  {scheduledContent.filter(c => c.status === 'scheduled').length}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">In Review</span>
-                <span className="font-medium">
-                  {scheduledContent.filter(c => c.status === 'review').length}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Drafts</span>
-                <span className="font-medium">
-                  {scheduledContent.filter(c => c.status === 'draft').length}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
-      </div>
+      )}
     </div>
   )
 }

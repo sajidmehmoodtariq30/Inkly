@@ -1,5 +1,18 @@
 import { Router } from "express";
 import { verifyJWT } from "../middleware/authMiddleware.js";
+import {
+    getWriterDashboard,
+    getWriterArticles,
+    getWriterAnalytics,
+    createArticle,
+    updateArticle,
+    deleteArticle,
+    getCategories,
+    getArticleById,
+    getArticleComments,
+    approveComment,
+    deleteComment
+} from "../controllers/WriterController.js";
 
 const router = Router();
 
@@ -14,26 +27,19 @@ const requireWriter = (req, res, next) => {
     next();
 };
 
-// Writer dashboard routes will be added here
-// Example routes structure:
+// Writer dashboard routes
+router.route("/dashboard").get(verifyJWT, requireWriter, getWriterDashboard);
+router.route("/articles").get(verifyJWT, requireWriter, getWriterArticles);
+router.route("/articles").post(verifyJWT, requireWriter, createArticle);
+router.route("/articles/:id").get(verifyJWT, requireWriter, getArticleById);
+router.route("/articles/:id").put(verifyJWT, requireWriter, updateArticle);
+router.route("/articles/:id").delete(verifyJWT, requireWriter, deleteArticle);
+router.route("/analytics").get(verifyJWT, requireWriter, getWriterAnalytics);
+router.route("/categories").get(verifyJWT, requireWriter, getCategories);
 
-// GET /api/writer/dashboard - Get writer dashboard overview
-// GET /api/writer/articles - Get writer's articles
-// POST /api/writer/articles - Create new article
-// PUT /api/writer/articles/:id - Update article
-// DELETE /api/writer/articles/:id - Delete article
-// GET /api/writer/analytics - Get writer analytics
-// GET /api/writer/comments - Get writer's article comments
-
-// Placeholder routes for now
-router.route("/dashboard").get(verifyJWT, requireWriter, (req, res) => {
-    res.json({
-        success: true,
-        message: "Writer dashboard access granted",
-        data: {
-            message: "Welcome to the writer dashboard!"
-        }
-    });
-});
+// Comment management routes
+router.route("/articles/:id/comments").get(verifyJWT, requireWriter, getArticleComments);
+router.route("/comments/:commentId/approve").put(verifyJWT, requireWriter, approveComment);
+router.route("/comments/:commentId").delete(verifyJWT, requireWriter, deleteComment);
 
 export default router;
