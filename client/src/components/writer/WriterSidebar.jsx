@@ -19,7 +19,6 @@ import {
   PenTool,
   BookOpen,
   MessageSquare,
-  Settings,
   User,
   Calendar,
   Tag,

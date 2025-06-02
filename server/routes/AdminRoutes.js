@@ -13,7 +13,8 @@ import {
     bulkDeleteCategories,
     getCategoryHierarchy,
     getAllComments,
-    deleteComment
+    deleteComment,
+    getAnalytics
 } from "../controllers/AdminController.js";
 import { verifyJWT } from "../middleware/authMiddleware.js";
 
@@ -32,6 +33,7 @@ const requireAdmin = (req, res, next) => {
 
 // Overview routes
 router.route("/overview").get(verifyJWT, requireAdmin, getOverviewStats);
+router.route("/analytics").get(verifyJWT, requireAdmin, getAnalytics);
 
 // User management routes
 router.route("/users").get(verifyJWT, requireAdmin, getAllUsers);

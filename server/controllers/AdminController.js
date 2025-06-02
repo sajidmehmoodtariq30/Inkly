@@ -608,6 +608,82 @@ const getCategoryHierarchy = asyncHandler(async (req, res) => {
     }
 });
 
+// @desc    Get comprehensive analytics data
+// @route   GET /api/admin/analytics
+// @access  Private/Admin
+const getAnalytics = asyncHandler(async (req, res) => {
+    try {
+        const { period = '30' } = req.query;
+        const days = parseInt(period);
+        
+        // Calculate date range
+        const currentDate = new Date();
+        const startDate = new Date(currentDate.getTime() - (days * 24 * 60 * 60 * 1000));
+        
+        // Get total counts
+        const totalUsers = await User.countDocuments({});
+        const totalWriters = await User.countDocuments({ role: 'writer' });
+        const totalCategories = await Category.countDocuments({ isVisible: true });
+        
+        // Get new users in period
+        const newUsersInPeriod = await User.countDocuments({
+            createdAt: { $gte: startDate }
+        });
+        
+        // Get active users (users who logged in within the period)
+        const activeUsers = await User.countDocuments({
+            lastLogin: { $gte: startDate }
+        });
+        
+        // Mock analytics data until full implementation
+        const analyticsData = {
+            overview: {
+                totalUsers,
+                totalWriters,
+                totalArticles: Math.floor(Math.random() * 600) + 400,
+                totalComments: Math.floor(Math.random() * 2000) + 1500,
+                totalViews: Math.floor(Math.random() * 50000) + 40000,
+                totalLikes: Math.floor(Math.random() * 4000) + 3000,
+                activeUsers,
+                newUsersThisMonth: newUsersInPeriod
+            },
+            recentActivity: Array.from({ length: 7 }, (_, i) => {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                return {
+                    date: date.toISOString().split('T')[0],
+                    users: Math.floor(Math.random() * 50) + 30,
+                    articles: Math.floor(Math.random() * 15) + 5,
+                    comments: Math.floor(Math.random() * 40) + 10
+                };
+            }).reverse(),
+            topCategories: [
+                { name: 'Technology', articles: 89, views: 12450 },
+                { name: 'Lifestyle', articles: 67, views: 9832 },
+                { name: 'Business', articles: 54, views: 8765 },
+                { name: 'Health', articles: 43, views: 6543 },
+                { name: 'Travel', articles: 32, views: 4321 }
+            ],
+            topWriters: [
+                { name: 'John Doe', articles: 23, views: 5643, likes: 234 },
+                { name: 'Jane Smith', articles: 19, views: 4521, likes: 198 },
+                { name: 'Mike Johnson', articles: 17, views: 3987, likes: 167 },
+                { name: 'Sarah Wilson', articles: 15, views: 3456, likes: 145 },
+                { name: 'Alex Brown', articles: 12, views: 2987, likes: 123 }
+            ],
+            period: days
+        };
+
+        return res.status(200).json(
+            new ApiResponse(200, analyticsData, "Analytics data retrieved successfully")
+        );
+
+    } catch (error) {
+        console.error("Error in getAnalytics:", error);
+        throw new ApiError(500, "Error retrieving analytics data");
+    }
+});
+
 export {
     getOverviewStats,
     getAllUsers,
@@ -622,5 +698,6 @@ export {
     deleteCategory,
     toggleCategoryVisibility,
     bulkDeleteCategories,
-    getCategoryHierarchy
+    getCategoryHierarchy,
+    getAnalytics
 };

@@ -4,7 +4,7 @@ import Topbar from '@/components/app/Topbar'
 import React from 'react'
 import { Outlet } from 'react-router-dom'
 import { SidebarProvider } from '@/components/ui/sidebar'
-import { Calendar, Home, Inbox, Search, Settings } from "lucide-react"
+import { Calendar, Home, Inbox, Search } from "lucide-react"
 
 const items = [
   {
@@ -26,11 +26,6 @@ const items = [
     title: "Comments",
     url: "#",
     icon: Inbox,
-  },
-  {
-    title: "Settings",
-    url: "#",
-    icon: Settings,
   },
 ]
 

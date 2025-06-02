@@ -21,7 +21,6 @@ import WriterArticles from './pages/WriterArticles'
 import WriterPublished from './pages/WriterPublished'
 import WriterComments from './pages/WriterComments'
 import WriterProfile from './pages/WriterProfile'
-import WriterSettings from './pages/WriterSettings'
 import ArticleEditor from './components/writer/ArticleEditor'
 import DraftManagement from './components/writer/DraftManagement'
 import WriterAnalytics from './components/writer/WriterAnalytics'
@@ -73,10 +72,8 @@ const App = () => {
             <Route path="edit/:id" element={<ArticleEditor />} />
             <Route path="drafts" element={<DraftManagement />} />
             <Route path="published" element={<WriterPublished />} />            <Route path="analytics" element={<WriterAnalytics />} />
-            <Route path="comments" element={<WriterComments />} />
-            <Route path="categories" element={<WriterCategories />} />
+            <Route path="comments" element={<WriterComments />} />            <Route path="categories" element={<WriterCategories />} />
             <Route path="media" element={<WriterMediaLibrary />} />            <Route path="profile" element={<WriterProfile />} />
-            <Route path="settings" element={<WriterSettings />} />
             <Route path="schedule" element={<WriterSchedule />} />
           </Route>
         </Routes>
