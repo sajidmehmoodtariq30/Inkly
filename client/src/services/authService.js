@@ -5,19 +5,25 @@ class AuthService {
   constructor() {
     this.refreshPromise = null
   }
-
   // Create an authenticated fetch wrapper
   async authenticatedFetch(url, options = {}) {
     const state = store.getState()
     const token = state.auth.token
 
     // Add authorization header if we have a token
+    const defaultHeaders = {
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+      ...options.headers,
+    }
+    
+    // Only set Content-Type to application/json if not explicitly excluded
+    // and if no Content-Type is already set in options.headers
+    if (!options.excludeContentType && !defaultHeaders['Content-Type']) {
+      defaultHeaders['Content-Type'] = 'application/json'
+    }
+
     const defaultOptions = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-        ...options.headers,
-      },
+      headers: defaultHeaders,
       credentials: 'include',
       ...options,
     }

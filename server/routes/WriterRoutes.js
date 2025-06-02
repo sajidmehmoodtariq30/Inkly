@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { verifyJWT } from "../middleware/authMiddleware.js";
+import { upload } from "../middleware/multerMiddleware.js";
 import {
     getWriterDashboard,
     getWriterArticles,
@@ -11,7 +12,12 @@ import {
     getArticleById,
     getArticleComments,
     approveComment,
-    deleteComment
+    deleteComment,
+    uploadMedia,
+    getMediaLibrary,
+    updateMedia,
+    deleteMedia,
+    getMediaFolders
 } from "../controllers/WriterController.js";
 
 const router = Router();
@@ -41,5 +47,12 @@ router.route("/categories").get(verifyJWT, requireWriter, getCategories);
 router.route("/articles/:id/comments").get(verifyJWT, requireWriter, getArticleComments);
 router.route("/comments/:commentId/approve").put(verifyJWT, requireWriter, approveComment);
 router.route("/comments/:commentId").delete(verifyJWT, requireWriter, deleteComment);
+
+// Media management routes
+router.route("/media").get(verifyJWT, requireWriter, getMediaLibrary);
+router.route("/media").post(verifyJWT, requireWriter, upload.single('image'), uploadMedia);
+router.route("/media/:id").put(verifyJWT, requireWriter, updateMedia);
+router.route("/media/:id").delete(verifyJWT, requireWriter, deleteMedia);
+router.route("/media/folders").get(verifyJWT, requireWriter, getMediaFolders);
 
 export default router;

@@ -4,7 +4,10 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { Article } from "../models/ArticleModel.js";
 import { User } from "../models/UserModel.js";
 import { Category } from "../models/CategoryModel.js";
+import { Media } from "../models/MediaModel.js";
+import { uploadOnCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
 import mongoose from "mongoose";
+import fs from "fs";
 
 // Helper function to generate unique slug
 const generateUniqueSlug = async (title, excludeId = null) => {
@@ -691,7 +694,147 @@ const deleteComment = asyncHandler(async (req, res) => {
         
     } catch (error) {
         console.error('Delete comment error:', error);
-        throw new ApiError(500, "Failed to delete comment");
+        throw new ApiError(500, "Failed to delete comment");    }
+});
+
+// Upload media files
+const uploadMedia = asyncHandler(async (req, res) => {
+    try {
+        if (!req.file) {
+            throw new ApiError(400, "No file uploaded");
+        }
+
+        const file = req.file;
+        
+        // Validate file type
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        if (!allowedTypes.includes(file.mimetype)) {
+            if (fs.existsSync(file.path)) {
+                fs.unlinkSync(file.path);
+            }
+            throw new ApiError(400, "Invalid file type. Only images are allowed.");
+        }
+
+        // Upload to Cloudinary
+        const cloudinaryResponse = await uploadOnCloudinary(file.path);
+        
+        if (!cloudinaryResponse) {
+            throw new ApiError(500, "Failed to upload image to cloud storage");
+        }
+
+        // Save media info to database
+        const media = await Media.create({
+            filename: cloudinaryResponse.public_id,
+            originalName: file.originalname,
+            url: cloudinaryResponse.secure_url,
+            cloudinaryId: cloudinaryResponse.public_id,
+            size: cloudinaryResponse.bytes,
+            mimeType: file.mimetype,
+            uploadedBy: req.user._id,
+            folder: req.body.folder || 'general'
+        });
+
+        return res.status(201).json(
+            new ApiResponse(201, media, "Media uploaded successfully")
+        );
+
+    } catch (error) {
+        console.error('Upload media error:', error);
+        throw new ApiError(500, "Failed to upload media");
+    }
+});
+
+// Get user's media library
+const getMediaLibrary = asyncHandler(async (req, res) => {
+    try {
+        const { page = 1, limit = 20, folder, search } = req.query;
+        const skip = (page - 1) * limit;
+
+        const query = { uploadedBy: req.user._id };
+        
+        if (folder && folder !== 'all') {
+            query.folder = folder;
+        }
+        
+        if (search) {
+            query.$or = [
+                { originalName: { $regex: search, $options: 'i' } },
+                { alt: { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        const media = await Media.find(query)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(parseInt(limit));
+
+        const total = await Media.countDocuments(query);
+
+        return res.status(200).json(
+            new ApiResponse(200, { media, total }, "Media library retrieved successfully")
+        );
+
+    } catch (error) {
+        console.error('Get media library error:', error);
+        throw new ApiError(500, "Failed to retrieve media library");
+    }
+});
+
+const updateMedia = asyncHandler(async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { alt, caption } = req.body;
+
+        const media = await Media.findOneAndUpdate(
+            { _id: id, uploadedBy: req.user._id },
+            { alt, caption },
+            { new: true }
+        );
+
+        if (!media) {
+            throw new ApiError(404, "Media not found");
+        }
+
+        return res.status(200).json(
+            new ApiResponse(200, media, "Media updated successfully")
+        );
+
+    } catch (error) {
+        throw new ApiError(500, "Failed to update media");
+    }
+});
+
+const deleteMedia = asyncHandler(async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const media = await Media.findOne({ _id: id, uploadedBy: req.user._id });
+        if (!media) {
+            throw new ApiError(404, "Media not found");
+        }
+
+        await deleteFromCloudinary(media.cloudinaryId);
+        await Media.findByIdAndDelete(id);
+
+        return res.status(200).json(
+            new ApiResponse(200, null, "Media deleted successfully")
+        );
+
+    } catch (error) {
+        throw new ApiError(500, "Failed to delete media");
+    }
+});
+
+const getMediaFolders = asyncHandler(async (req, res) => {
+    try {
+        const folders = await Media.distinct('folder', { uploadedBy: req.user._id });
+        
+        return res.status(200).json(
+            new ApiResponse(200, folders, "Folders retrieved successfully")
+        );
+
+    } catch (error) {
+        throw new ApiError(500, "Failed to retrieve folders");
     }
 });
 
@@ -706,5 +849,10 @@ export {
     getArticleById,
     getArticleComments,
     approveComment,
-    deleteComment
+    deleteComment,
+    uploadMedia,
+    getMediaLibrary,
+    updateMedia,
+    deleteMedia,
+    getMediaFolders
 };

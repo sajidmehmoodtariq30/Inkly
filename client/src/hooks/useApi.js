@@ -61,23 +61,17 @@ export const useApi = () => {
       method: 'PATCH',
       body: data ? JSON.stringify(data) : undefined,
     })
-  }
-
-  // For form data (file uploads)
+  }  // For form data (file uploads)
   const postFormData = (url, formData, options = {}) => {
-    const headers = {
-      ...(token && { 'Authorization': `Bearer ${token}` }),
-      ...options.headers,
-    }
-    
-    // Don't set Content-Type for FormData - let browser set it with boundary
-    delete headers['Content-Type']
-
     return apiCall(url, {
       ...options,
       method: 'POST',
-      headers,
       body: formData,
+      excludeContentType: true, // Don't set Content-Type for FormData
+      headers: {
+        ...(token && { 'Authorization': `Bearer ${token}` }),
+        ...options.headers,
+      }
     })
   }
 

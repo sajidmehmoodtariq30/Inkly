@@ -13,11 +13,14 @@ import {
   Send, 
   ArrowLeft,
   Loader2,
-  Edit
+  Edit,
+  ImagePlus,
+  X
 } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useApi } from '../../hooks/useApi'
 import { toast } from '../../utils/toast'
+import WriterMediaLibrary from './WriterMediaLibrary'
 
 const ArticleEditor = () => {
   const { id } = useParams() // For editing existing articles
@@ -34,6 +37,8 @@ const ArticleEditor = () => {
   const [saving, setSaving] = useState(false)
   const [initialLoading, setInitialLoading] = useState(!!id)
   const [previewMode, setPreviewMode] = useState(false)
+  const [showMediaLibrary, setShowMediaLibrary] = useState(false)
+  
   useEffect(() => {
     fetchCategories()
     if (id) {
@@ -80,6 +85,14 @@ const ArticleEditor = () => {
       navigate('/writer/articles')
     } finally {
       setInitialLoading(false)
+    }
+  }
+  const handleImageSelect = (markdownImage) => {
+    if (markdownImage) {
+      // Insert the markdown image at the current cursor position or append to content
+      setContent(prevContent => prevContent + '\n\n' + markdownImage)
+      setShowMediaLibrary(false)
+      toast.success('Image inserted into article')
     }
   }
 
@@ -154,8 +167,7 @@ const ArticleEditor = () => {
       
       toast.success('Image uploaded successfully')
       return imageUrl
-    } catch (error) {
-      toast.error('Failed to upload image')
+    } catch (error) {      toast.error('Failed to upload image')
       console.error('Image upload error:', error)
     }
   }
@@ -246,7 +258,17 @@ const ArticleEditor = () => {
                 />
               </div>              {/* Rich Text Content Editor */}
               <div>
-                <label className="text-sm font-medium mb-2 block">Content *</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium">Content *</label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowMediaLibrary(true)}
+                  >
+                    <ImagePlus className="h-4 w-4 mr-2" />
+                    Add Image
+                  </Button>
+                </div>
                 <div className="border rounded-md overflow-hidden">
                   <MDEditor
                     value={content}
@@ -265,9 +287,8 @@ const ArticleEditor = () => {
                       }
                     }}
                   />
-                </div>
-                <div className="mt-2 text-xs text-gray-500">
-                  💡 Tip: Use the toolbar above or markdown syntax for formatting. Switch to preview mode to see how your article will look.
+                </div>                <div className="mt-2 text-xs text-gray-500">
+                  💡 Tip: Use the toolbar above or markdown syntax for formatting. Click "Add Image" to insert images from your media library.
                 </div>
               </div>
             </CardContent>
@@ -443,10 +464,33 @@ const ArticleEditor = () => {
                   <p className="text-xs text-muted-foreground">Inline code</p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </CardContent>          </Card>
         </div>
       </div>
+
+      {/* Media Library Modal */}
+      {showMediaLibrary && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-6xl h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-xl font-semibold">Select Image</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowMediaLibrary(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="overflow-auto h-full">
+              <WriterMediaLibrary 
+                onImageSelect={handleImageSelect}
+                isSelectionMode={true}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
