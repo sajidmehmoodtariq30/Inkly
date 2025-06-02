@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import logo from '../../assets/logo.png'
 import { Link, useNavigate } from 'react-router-dom'
-import { DotIcon, LogOutIcon, UserIcon } from 'lucide-react'
+import { DotIcon, LogOutIcon, UserIcon, Shield, PenTool } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
 
@@ -109,12 +109,27 @@ const AppSidebar = ({ items }) => {
                           </div>
                         </div>
                       </div>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
+                    </DropdownMenuTrigger>                    <DropdownMenuContent align="end" className="w-56">
                       <DropdownMenuItem onClick={handleProfileClick}>
                         <UserIcon className="mr-2 h-4 w-4" />
                         <span>Profile</span>
                       </DropdownMenuItem>
+                      
+                      {/* Dashboard buttons based on user role */}
+                      {user.role === 'admin' && (
+                        <DropdownMenuItem onClick={() => navigate('/admin')}>
+                          <Shield className="mr-2 h-4 w-4" />
+                          <span>Admin Dashboard</span>
+                        </DropdownMenuItem>
+                      )}
+                      
+                      {user.role === 'writer' && (
+                        <DropdownMenuItem onClick={() => navigate('/writer')}>
+                          <PenTool className="mr-2 h-4 w-4" />
+                          <span>Writer Dashboard</span>
+                        </DropdownMenuItem>
+                      )}
+                      
                       <DropdownMenuItem onClick={handleLogout}>
                         <LogOutIcon className="mr-2 h-4 w-4" />
                         <span>Logout</span>

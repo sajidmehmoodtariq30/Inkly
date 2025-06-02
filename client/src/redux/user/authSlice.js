@@ -21,6 +21,37 @@ const extractUserData = (firebaseUser) => {
   }
 }
 
+// Async thunk for token refresh
+export const refreshTokenAsync = createAsyncThunk(
+  'auth/refreshToken',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}users/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error('Token refresh failed')
+      }
+
+      const data = await response.json()
+      
+      if (data.success && data.data.accessToken) {
+        return data.data.accessToken
+      } else {
+        throw new Error('Invalid refresh response')
+      }
+    } catch (error) {
+      console.error('Token refresh error:', error)
+      return rejectWithValue(error.message)
+    }
+  }
+)
+
 // Async thunk for logout
 export const logoutAsync = createAsyncThunk(
   'auth/logout',
@@ -29,8 +60,8 @@ export const logoutAsync = createAsyncThunk(
       // Sign out from Firebase
       await signOut(auth)
       
-      // Call logout API to clear server-side cookies
-      await fetch(`${import.meta.env.VITE_API_BASE_URL}users/logout`, {
+      // Call logout API to clear server-side cookies - use regular fetch to avoid intercept issues
+      await window.fetch(`${import.meta.env.VITE_API_BASE_URL}users/logout`, {
         method: 'POST',
         credentials: 'include'
       })
@@ -108,13 +139,20 @@ const authSlice = createSlice({
     },
     clearError: (state) => {
       state.error = null
-    },
-    updateUserProfile: (state, action) => {
+    },    updateUserProfile: (state, action) => {
       const updatedUser = action.payload
       state.user = { ...state.user, ...updatedUser }
       
       // Update localStorage with new user data
       localStorage.setItem('user', JSON.stringify(state.user))
+    },
+    // Action to update token after refresh
+    updateToken: (state, action) => {
+      state.token = action.payload
+      state.error = null
+      
+      // Update localStorage with new token
+      localStorage.setItem('accessToken', action.payload)
     },
     // Handle Firebase auth state changes with serializable data
     handleFirebaseAuthChange: (state, action) => {
@@ -137,9 +175,22 @@ const authSlice = createSlice({
         localStorage.removeItem('accessToken')
       }
     }
-  },
-  extraReducers: (builder) => {
+  },  extraReducers: (builder) => {
     builder
+      // Token refresh cases
+      .addCase(refreshTokenAsync.pending, (state) => {
+        state.error = null
+      })
+      .addCase(refreshTokenAsync.fulfilled, (state, action) => {
+        state.token = action.payload
+        state.error = null
+        localStorage.setItem('accessToken', action.payload)
+      })
+      .addCase(refreshTokenAsync.rejected, (state, action) => {
+        state.error = action.payload
+        // Don't clear user data on refresh failure - let the auth service handle it
+      })
+      // Logout cases
       .addCase(logoutAsync.pending, (state) => {
         state.loading = true
         state.error = null
@@ -170,6 +221,7 @@ export const {
   setError, 
   clearError, 
   updateUserProfile,
+  updateToken,
   handleFirebaseAuthChange 
 } = authSlice.actions
 
