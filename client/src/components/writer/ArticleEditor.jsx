@@ -4,22 +4,16 @@ import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Textarea } from '../ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
+import MDEditor from '@uiw/react-md-editor'
+import '@uiw/react-md-editor/markdown-editor.css'
+import '@uiw/react-markdown-preview/markdown.css'
 import { 
   Save, 
   Eye, 
   Send, 
-  Image, 
-  Link2, 
-  Bold, 
-  Italic, 
-  List, 
-  Quote,
-  Code,
-  Heading1,
-  Heading2,
-  Heading3,
   ArrowLeft,
-  Loader2
+  Loader2,
+  Edit
 } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useApi } from '../../hooks/useApi'
@@ -29,8 +23,7 @@ const ArticleEditor = () => {
   const { id } = useParams() // For editing existing articles
   const navigate = useNavigate()
   const { get, post, put } = useApi()
-  
-  const [title, setTitle] = useState('')
+    const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [tags, setTags] = useState('')
@@ -40,14 +33,16 @@ const ArticleEditor = () => {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [initialLoading, setInitialLoading] = useState(!!id)
-
+  const [previewMode, setPreviewMode] = useState(false)
   useEffect(() => {
     fetchCategories()
     if (id) {
       fetchArticle()
     }
   }, [id])
-  const fetchCategories = async () => {    try {
+
+  const fetchCategories = async () => {
+    try {
       const response = await get(`${import.meta.env.VITE_API_BASE_URL}writer/categories`)
       if (!response.ok) {
         throw new Error('Failed to fetch categories')
@@ -140,22 +135,30 @@ const ArticleEditor = () => {
     } catch (error) {
       toast.error(error.message || 'Failed to save article')
     } finally {
-      setSaving(false)
-    }
+      setSaving(false)    }
   }
 
-  const toolbarButtons = [
-    { icon: Bold, label: 'Bold', action: 'bold' },
-    { icon: Italic, label: 'Italic', action: 'italic' },
-    { icon: Heading1, label: 'H1', action: 'h1' },
-    { icon: Heading2, label: 'H2', action: 'h2' },
-    { icon: Heading3, label: 'H3', action: 'h3' },
-    { icon: List, label: 'List', action: 'list' },
-    { icon: Quote, label: 'Quote', action: 'quote' },
-    { icon: Code, label: 'Code', action: 'code' },
-    { icon: Link2, label: 'Link', action: 'link' },
-    { icon: Image, label: 'Image', action: 'image' },
-  ]
+  // Helper function to handle image uploads
+  const handleImageUpload = async (file) => {
+    try {
+      const formData = new FormData()
+      formData.append('image', file)
+      
+      // You can implement actual image upload to your server/cloud storage here
+      // For now, we'll create a placeholder URL
+      const imageUrl = URL.createObjectURL(file)
+      
+      // Insert markdown image syntax at cursor position
+      const imageMarkdown = `![${file.name}](${imageUrl})`
+      setContent(prev => prev + '\n\n' + imageMarkdown + '\n\n')
+      
+      toast.success('Image uploaded successfully')
+      return imageUrl
+    } catch (error) {
+      toast.error('Failed to upload image')
+      console.error('Image upload error:', error)
+    }
+  }
 
   if (initialLoading) {
     return (
@@ -194,13 +197,13 @@ const ArticleEditor = () => {
               <Save className="h-4 w-4 mr-2" />
             )}
             Save Draft
-          </Button>
-          <Button 
+          </Button>          <Button 
             variant="outline"
+            onClick={() => setPreviewMode(!previewMode)}
             disabled={saving}
           >
             <Eye className="h-4 w-4 mr-2" />
-            Preview
+            {previewMode ? 'Edit' : 'Preview'}
           </Button>
           <Button 
             onClick={() => handleSave('published')}
@@ -233,9 +236,7 @@ const ArticleEditor = () => {
                   onChange={(e) => setTitle(e.target.value)}
                   className="text-lg font-medium"
                 />
-              </div>
-
-              <div>
+              </div>              <div>
                 <label className="text-sm font-medium mb-2 block">Excerpt</label>
                 <Textarea
                   placeholder="Brief description of your article..."
@@ -243,33 +244,31 @@ const ArticleEditor = () => {
                   onChange={(e) => setExcerpt(e.target.value)}
                   rows={3}
                 />
-              </div>              {/* Editor Toolbar */}
-              <div className="border-t border-b py-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  {toolbarButtons.map((button) => (
-                    <Button
-                      key={button.action}
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {}}
-                      title={button.label}
-                    >
-                      <button.icon className="h-4 w-4" />
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Content Editor */}
+              </div>              {/* Rich Text Content Editor */}
               <div>
                 <label className="text-sm font-medium mb-2 block">Content *</label>
-                <Textarea
-                  placeholder="Start writing your article content..."
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  rows={20}
-                  className="min-h-[500px] resize-none"
-                />
+                <div className="border rounded-md overflow-hidden">
+                  <MDEditor
+                    value={content}
+                    onChange={setContent}
+                    preview={previewMode ? 'preview' : 'edit'}
+                    hideToolbar={false}
+                    visibleDragBar={false}
+                    height={500}
+                    data-color-mode="light"
+                    textareaProps={{
+                      placeholder: 'Start writing your article content...\n\nYou can use:\n- **Bold text**\n- *Italic text*\n- # Headings\n- [Links](url)\n- ![Images](url)\n- `Code blocks`\n- > Quotes\n- - Lists',
+                      style: {
+                        fontSize: 14,
+                        lineHeight: 1.6,
+                        fontFamily: '"Inter", system-ui, sans-serif'
+                      }
+                    }}
+                  />
+                </div>
+                <div className="mt-2 text-xs text-gray-500">
+                  💡 Tip: Use the toolbar above or markdown syntax for formatting. Switch to preview mode to see how your article will look.
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -408,20 +407,41 @@ const ArticleEditor = () => {
                 </div>
               </div>
             </CardContent>
-          </Card>
-
-          {/* Writing Tips */}
+          </Card>          {/* Markdown Guide */}
           <Card>
             <CardHeader>
-              <CardTitle>Writing Tips</CardTitle>
+              <CardTitle>Markdown Quick Guide</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="text-sm text-muted-foreground space-y-1">
-                <p>• Write compelling headlines</p>
-                <p>• Use clear, concise language</p>
-                <p>• Break content into sections</p>
-                <p>• Add relevant tags for discovery</p>
-                <p>• Preview before publishing</p>
+            <CardContent className="space-y-3">
+              <div className="text-sm space-y-2">
+                <div>
+                  <code className="bg-gray-100 px-1 rounded text-xs"># Heading 1</code>
+                  <p className="text-xs text-muted-foreground">Large heading</p>
+                </div>
+                <div>
+                  <code className="bg-gray-100 px-1 rounded text-xs">**Bold text**</code>
+                  <p className="text-xs text-muted-foreground">Make text bold</p>
+                </div>
+                <div>
+                  <code className="bg-gray-100 px-1 rounded text-xs">*Italic text*</code>
+                  <p className="text-xs text-muted-foreground">Make text italic</p>
+                </div>
+                <div>
+                  <code className="bg-gray-100 px-1 rounded text-xs">[Link](url)</code>
+                  <p className="text-xs text-muted-foreground">Insert links</p>
+                </div>
+                <div>
+                  <code className="bg-gray-100 px-1 rounded text-xs">![Image](url)</code>
+                  <p className="text-xs text-muted-foreground">Insert images</p>
+                </div>
+                <div>
+                  <code className="bg-gray-100 px-1 rounded text-xs">- List item</code>
+                  <p className="text-xs text-muted-foreground">Create lists</p>
+                </div>
+                <div>
+                  <code className="bg-gray-100 px-1 rounded text-xs">`code`</code>
+                  <p className="text-xs text-muted-foreground">Inline code</p>
+                </div>
               </div>
             </CardContent>
           </Card>

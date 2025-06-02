@@ -6,6 +6,32 @@ import { User } from "../models/UserModel.js";
 import { Category } from "../models/CategoryModel.js";
 import mongoose from "mongoose";
 
+// Helper function to generate unique slug
+const generateUniqueSlug = async (title, excludeId = null) => {
+    let baseSlug = title
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]+/g, '') // Remove special characters but keep spaces
+        .replace(/\s+/g, '-')        // Replace spaces with hyphens
+        .replace(/-+/g, '-')         // Replace multiple hyphens with single
+        .replace(/^-+|-+$/g, '');    // Remove leading/trailing hyphens
+    
+    // Ensure we have a valid slug
+    if (!baseSlug) {
+        baseSlug = 'article';
+    }
+    
+    let slug = baseSlug;
+    let counter = 1;
+    
+    // Ensure unique slug
+    while (await Article.findOne({ slug: slug, _id: { $ne: excludeId } })) {
+        slug = `${baseSlug}-${counter}`;
+        counter++;
+    }
+    
+    return slug;
+};
+
 // Get writer dashboard overview
 const getWriterDashboard = asyncHandler(async (req, res) => {
     const writerId = req.user._id;
@@ -360,8 +386,12 @@ const createArticle = asyncHandler(async (req, res) => {
     }
     
     try {
+        // Generate unique slug
+        const slug = await generateUniqueSlug(title);
+        
         const article = await Article.create({
             title,
+            slug,
             content,
             excerpt,
             author: req.user._id,
@@ -407,22 +437,28 @@ const updateArticle = asyncHandler(async (req, res) => {
         // Verify category exists
         const category = await Category.findById(categoryId);
         if (!category) {
-            throw new ApiError(404, "Category not found");
+            throw new ApiError(404, "Category not found");        }
+        
+        // Generate new slug if title has changed
+        let updateData = {
+            title,
+            content,
+            excerpt,
+            category: categoryId,
+            tags: tags || [],
+            status,
+            publishedAt: status === 'published' && existingArticle.status !== 'published' 
+                ? new Date() 
+                : existingArticle.publishedAt
+        };
+        
+        if (title !== existingArticle.title) {
+            updateData.slug = await generateUniqueSlug(title, id);
         }
         
         const updatedArticle = await Article.findByIdAndUpdate(
             id,
-            {
-                title,
-                content,
-                excerpt,
-                category: categoryId,
-                tags: tags || [],
-                status,
-                publishedAt: status === 'published' && existingArticle.status !== 'published' 
-                    ? new Date() 
-                    : existingArticle.publishedAt
-            },
+            updateData,
             { new: true }
         ).populate('category', 'name slug')
          .populate('author', 'fullName avatar');
@@ -467,7 +503,7 @@ const deleteArticle = asyncHandler(async (req, res) => {
 // Get categories
 const getCategories = asyncHandler(async (req, res) => {
     try {
-        const categories = await Category.find({ isActive: true })
+        const categories = await Category.find({ isVisible: true })
             .select('name slug description')
             .sort({ name: 1 });
         

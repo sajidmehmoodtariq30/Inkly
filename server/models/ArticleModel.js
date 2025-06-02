@@ -131,8 +131,9 @@ articleSchema.virtual('commentCount').get(function() {
     return this.comments.filter(comment => comment.isApproved).length;
 });
 
-// Calculate reading time based on content
-articleSchema.pre('save', function(next) {
+// Calculate reading time and generate slug
+articleSchema.pre('save', async function(next) {
+    // Calculate reading time based on content
     if (this.isModified('content')) {
         const wordsPerMinute = 200;
         const wordCount = this.content.split(' ').length;
@@ -144,16 +145,19 @@ articleSchema.pre('save', function(next) {
         this.publishedAt = new Date();
     }
     
-    next();
-});
-
-// Generate slug from title
-articleSchema.pre('save', async function(next) {
-    if (this.isModified('title') && !this.slug) {
+    // Generate slug from title if title is modified or if this is a new document without a slug
+    if (this.isModified('title') || (this.isNew && !this.slug)) {
         let baseSlug = this.title
             .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/^-+|-+$/g, '');
+            .replace(/[^a-z0-9\s]+/g, '') // Remove special characters but keep spaces
+            .replace(/\s+/g, '-')        // Replace spaces with hyphens
+            .replace(/-+/g, '-')         // Replace multiple hyphens with single
+            .replace(/^-+|-+$/g, '');    // Remove leading/trailing hyphens
+        
+        // Ensure we have a valid slug
+        if (!baseSlug) {
+            baseSlug = 'article';
+        }
         
         let slug = baseSlug;
         let counter = 1;
@@ -166,6 +170,7 @@ articleSchema.pre('save', async function(next) {
         
         this.slug = slug;
     }
+    
     next();
 });
 

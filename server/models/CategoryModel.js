@@ -47,8 +47,7 @@ const categorySchema = new Schema(
         postCount: {
             type: Number,
             default: 0
-        },
-        createdBy: {
+        },        createdBy: {
             type: Schema.Types.ObjectId,
             ref: "User",
             required: true
