@@ -281,8 +281,47 @@ const getWriterAnalytics = asyncHandler(async (req, res) => {
     try {
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - parseInt(period));
+        const currentDate = new Date();
         
-        // Views over time
+        // Get overall statistics for published articles
+        const overallStats = await Article.aggregate([
+            {
+                $match: {
+                    author: new mongoose.Types.ObjectId(writerId),
+                    status: 'published',
+                    isArchived: false
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalViews: { $sum: '$views' },
+                    totalLikes: { $sum: { $size: '$likes' } },
+                    totalComments: { $sum: { $size: '$comments' } },
+                    averageReadTime: { $avg: '$readingTime' },
+                    articleCount: { $sum: 1 }
+                }
+            }
+        ]);
+
+        const stats = overallStats[0] || {
+            totalViews: 0,
+            totalLikes: 0,
+            totalComments: 0,
+            averageReadTime: 0,
+            articleCount: 0
+        };
+
+        // Calculate engagement rate
+        const engagementRate = stats.totalViews > 0 
+            ? (((stats.totalLikes + stats.totalComments) / stats.totalViews) * 100).toFixed(1)
+            : '0.0';
+
+        // Get follower count (you might need to add a followers field to User model)
+        const writer = await User.findById(writerId).select('followers');
+        const totalFollowers = writer?.followers?.length || 0;
+
+        // Views over time for the specified period
         const viewsOverTime = await Article.aggregate([
             {
                 $match: {
@@ -300,11 +339,29 @@ const getWriterAnalytics = asyncHandler(async (req, res) => {
                         }
                     },
                     views: { $sum: '$views' },
+                    likes: { $sum: { $size: '$likes' } },
+                    comments: { $sum: { $size: '$comments' } },
                     articles: { $sum: 1 }
                 }
             },
             { $sort: { _id: 1 } }
         ]);
+
+        // Generate recent performance for the last 7 days
+        const recentPerformance = [];
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            const dateString = date.toISOString().split('T')[0];
+            
+            const dayData = viewsOverTime.find(d => d._id === dateString);
+            recentPerformance.push({
+                date: dateString,
+                views: dayData?.views || 0,
+                likes: dayData?.likes || 0,
+                comments: dayData?.comments || 0
+            });
+        }
         
         // Top performing articles
         const topArticles = await Article.find({
@@ -314,8 +371,25 @@ const getWriterAnalytics = asyncHandler(async (req, res) => {
         })
         .sort({ views: -1 })
         .limit(5)
-        .select('title views likes comments publishedAt')
+        .select('title views likes comments publishedAt readingTime')
         .populate('category', 'name');
+
+        const formattedTopArticles = topArticles.map(article => {
+            const totalEngagement = article.likes.length + article.comments.length;
+            const engagementRate = article.views > 0 
+                ? ((totalEngagement / article.views) * 100).toFixed(1)
+                : '0.0';
+            
+            return {
+                title: article.title,
+                views: article.views,
+                likes: article.likes.length,
+                comments: article.comments.length,
+                engagementRate: parseFloat(engagementRate),
+                publishedAt: article.publishedAt,
+                category: article.category?.name || 'Uncategorized'
+            };
+        });
         
         // Category performance
         const categoryStats = await Article.aggregate([
@@ -346,21 +420,39 @@ const getWriterAnalytics = asyncHandler(async (req, res) => {
                     totalLikes: { $sum: { $size: '$likes' } }
                 }
             },
-            { $sort: { articleCount: -1 } }
+            { $sort: { totalViews: -1 } }
         ]);
-        
+
+        // Mock audience insights (these would come from analytics tracking in a real app)
+        const audienceInsights = {
+            topCountries: [
+                { country: 'United States', percentage: 35 },
+                { country: 'United Kingdom', percentage: 18 },
+                { country: 'Canada', percentage: 12 },
+                { country: 'Germany', percentage: 10 },
+                { country: 'Others', percentage: 25 }
+            ],
+            deviceTypes: [
+                { type: 'Desktop', percentage: 55 },
+                { type: 'Mobile', percentage: 35 },
+                { type: 'Tablet', percentage: 10 }
+            ]
+        };
+
         const analyticsData = {
-            viewsOverTime,
-            topArticles: topArticles.map(article => ({
-                id: article._id,
-                title: article.title,
-                views: article.views,
-                likes: article.likes.length,
-                comments: article.comments.filter(c => c.isApproved).length,
-                publishedAt: article.publishedAt,
-                category: article.category
-            })),
+            overview: {
+                totalViews: stats.totalViews,
+                totalLikes: stats.totalLikes,
+                totalComments: stats.totalComments,
+                totalFollowers: totalFollowers,
+                averageReadTime: `${Math.round(stats.averageReadTime || 0)} min`,
+                engagementRate: `${engagementRate}%`,
+                articlesPublished: stats.articleCount
+            },
+            recentPerformance,
+            topArticles: formattedTopArticles,
             categoryStats,
+            audienceInsights,
             period: parseInt(period)
         };
         

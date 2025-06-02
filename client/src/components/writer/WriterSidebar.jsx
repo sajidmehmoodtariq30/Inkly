@@ -90,26 +90,6 @@ const WriterSidebar = () => {
     }
   ]
 
-  const settingsItems = [
-    {
-      title: "Profile",
-      url: "/writer/profile",
-      icon: User,
-      description: "Personal settings"
-    },
-    {
-      title: "Preferences",
-      url: "/writer/settings",
-      icon: Settings,
-      description: "Writer preferences"
-    },
-    {
-      title: "Schedule",
-      url: "/writer/schedule",
-      icon: Calendar,
-      description: "Content calendar"
-    }
-  ]
 
   return (
     <Sidebar className="border-r">
@@ -151,39 +131,15 @@ const WriterSidebar = () => {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Settings</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {settingsItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    asChild 
-                    isActive={location.pathname === item.url}
-                    className="w-full justify-start gap-3 px-3 py-2.5 text-left hover:bg-accent rounded-md transition-colors"
-                  >
-                    <Link to={item.url}>
-                      <item.icon className="h-5 w-5" />
-                      <div>
-                        <div className="font-medium">{item.title}</div>
-                        <div className="text-xs text-muted-foreground">{item.description}</div>
-                      </div>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter className="border-t px-4 py-4">
         <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
           <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center">
-            {user?.profilePicture ? (
+            {user?.avatar ? (
               <img
-                src={user.profilePicture}
-                alt={user.name}
+                src={user.avatar}
+                alt={user.fullName}
                 className="h-8 w-8 rounded-full object-cover"
               />
             ) : (
@@ -191,7 +147,7 @@ const WriterSidebar = () => {
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{user?.name || 'Writer'}</p>
+            <p className="text-sm font-medium truncate">{user?.fullName || 'Writer'}</p>
             <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
           </div>
           <Heart className="h-4 w-4 text-red-500" />

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import { 
   TrendingUp, 
@@ -9,74 +9,107 @@ import {
   Calendar,
   BarChart3,
   FileText,
-  Clock
+  Clock,
+  Loader2
 } from 'lucide-react'
+import { useApi } from '../../hooks/useApi'
 
 const WriterAnalytics = () => {
-  // Mock analytics data - replace with real data later
-  const analyticsData = {
-    overview: {
-      totalViews: 5678,
-      totalLikes: 234,
-      totalComments: 89,
-      totalFollowers: 156,
-      averageReadTime: '6.5 min',
-      engagementRate: '4.2%'
-    },
-    recentPerformance: [
-      { date: '2024-01-15', views: 234, likes: 12, comments: 5 },
-      { date: '2024-01-14', views: 189, likes: 8, comments: 3 },
-      { date: '2024-01-13', views: 156, likes: 15, comments: 7 },
-      { date: '2024-01-12', views: 278, likes: 22, comments: 9 },
-      { date: '2024-01-11', views: 203, likes: 11, comments: 4 },
-      { date: '2024-01-10', views: 167, likes: 9, comments: 6 },
-      { date: '2024-01-09', views: 145, likes: 7, comments: 2 }
-    ],
-    topArticles: [
-      {
-        title: "Getting Started with React Hooks",
-        views: 1234,
-        likes: 45,
-        comments: 12,
-        engagementRate: 4.6
-      },
-      {
-        title: "Building Scalable Web Applications",
-        views: 892,
-        likes: 67,
-        comments: 18,
-        engagementRate: 9.5
-      },
-      {
-        title: "JavaScript Performance Optimization",
-        views: 567,
-        likes: 23,
-        comments: 8,
-        engagementRate: 5.5
+  const { get } = useApi()
+  const [analyticsData, setAnalyticsData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [period, setPeriod] = useState('30')
+
+  useEffect(() => {
+    fetchAnalyticsData()
+  }, [period])
+
+  const fetchAnalyticsData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const response = await get(`${import.meta.env.VITE_API_BASE_URL}writer/analytics?period=${period}`)
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch analytics data')
       }
-    ],
-    audienceInsights: {
-      topCountries: [
-        { country: 'United States', percentage: 35 },
-        { country: 'United Kingdom', percentage: 18 },
-        { country: 'Canada', percentage: 12 },
-        { country: 'Germany', percentage: 10 },
-        { country: 'Australia', percentage: 8 }
-      ],
-      deviceTypes: [
-        { type: 'Desktop', percentage: 55 },
-        { type: 'Mobile', percentage: 35 },
-        { type: 'Tablet', percentage: 10 }
-      ]
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setAnalyticsData(data.data)
+      } else {
+        throw new Error(data.message || 'Failed to fetch analytics data')
+      }
+    } catch (error) {
+      console.error('Analytics fetch error:', error)
+      setError(error.message)
+    } finally {
+      setLoading(false)
     }
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex items-center space-x-2">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span>Loading analytics...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Analytics</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={fetchAnalyticsData}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!analyticsData) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-900">No analytics data available</h2>
+        </div>
+      </div>
+    )
+  }
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">Analytics Dashboard</h2>
-        <p className="text-gray-600">Track your content performance and audience insights</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Analytics Dashboard</h2>
+          <p className="text-gray-600">Track your content performance and audience insights</p>
+        </div>
+        <div className="flex items-center space-x-2">
+          <label htmlFor="period" className="text-sm font-medium text-gray-700">Time Period:</label>
+          <select
+            id="period"
+            value={period}
+            onChange={(e) => setPeriod(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="7">Last 7 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="90">Last 90 days</option>
+            <option value="365">Last year</option>
+          </select>
+        </div>
       </div>
 
       {/* Overview Stats */}
@@ -85,11 +118,10 @@ const WriterAnalytics = () => {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Views</CardTitle>
             <Eye className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{analyticsData.overview.totalViews.toLocaleString()}</div>
+          </CardHeader>          <CardContent>
+            <div className="text-2xl font-bold">{(analyticsData?.overview?.totalViews || 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              +12% from last month
+              Across all published articles
             </p>
           </CardContent>
         </Card>
@@ -98,11 +130,10 @@ const WriterAnalytics = () => {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Likes</CardTitle>
             <Heart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{analyticsData.overview.totalLikes}</div>
+          </CardHeader>          <CardContent>
+            <div className="text-2xl font-bold">{analyticsData?.overview?.totalLikes || 0}</div>
             <p className="text-xs text-muted-foreground">
-              +8% from last month
+              Reader engagement
             </p>
           </CardContent>
         </Card>
@@ -111,24 +142,22 @@ const WriterAnalytics = () => {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Comments</CardTitle>
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{analyticsData.overview.totalComments}</div>
+          </CardHeader>          <CardContent>
+            <div className="text-2xl font-bold">{analyticsData?.overview?.totalComments || 0}</div>
             <p className="text-xs text-muted-foreground">
-              +15% from last month
+              Community discussions
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Followers</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{analyticsData.overview.totalFollowers}</div>
+            <CardTitle className="text-sm font-medium">Articles Published</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>          <CardContent>
+            <div className="text-2xl font-bold">{analyticsData?.overview?.articlesPublished || 0}</div>
             <p className="text-xs text-muted-foreground">
-              +5% from last month
+              Total published content
             </p>
           </CardContent>
         </Card>
@@ -137,11 +166,10 @@ const WriterAnalytics = () => {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Avg. Read Time</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{analyticsData.overview.averageReadTime}</div>
+          </CardHeader>          <CardContent>
+            <div className="text-2xl font-bold">{analyticsData?.overview?.averageReadTime || 'N/A'}</div>
             <p className="text-xs text-muted-foreground">
-              +0.3 min from last month
+              Reader engagement depth
             </p>
           </CardContent>
         </Card>
@@ -150,11 +178,10 @@ const WriterAnalytics = () => {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Engagement Rate</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{analyticsData.overview.engagementRate}</div>
+          </CardHeader>          <CardContent>
+            <div className="text-2xl font-bold">{analyticsData?.overview?.engagementRate || 'N/A'}</div>
             <p className="text-xs text-muted-foreground">
-              +0.5% from last month
+              Likes & comments per view
             </p>
           </CardContent>
         </Card>
@@ -166,30 +193,33 @@ const WriterAnalytics = () => {
           <CardHeader>
             <CardTitle>Performance Trend</CardTitle>
             <CardDescription>Last 7 days activity</CardDescription>
-          </CardHeader>
-          <CardContent>
+          </CardHeader>          <CardContent>
             <div className="space-y-4">
-              {analyticsData.recentPerformance.map((day, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="text-sm text-gray-600">
-                    {new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              {(analyticsData?.recentPerformance && analyticsData.recentPerformance.length > 0) ? (
+                analyticsData.recentPerformance.map((day, index) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <div className="text-sm text-gray-600">
+                      {new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </div>
+                    <div className="flex items-center space-x-4 text-sm">
+                      <div className="flex items-center">
+                        <Eye className="w-4 h-4 mr-1 text-blue-500" />
+                        {day.views}
+                      </div>
+                      <div className="flex items-center">
+                        <Heart className="w-4 h-4 mr-1 text-red-500" />
+                        {day.likes}
+                      </div>
+                      <div className="flex items-center">
+                        <MessageSquare className="w-4 h-4 mr-1 text-green-500" />
+                        {day.comments}
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-4 text-sm">
-                    <div className="flex items-center">
-                      <Eye className="w-4 h-4 mr-1 text-blue-500" />
-                      {day.views}
-                    </div>
-                    <div className="flex items-center">
-                      <Heart className="w-4 h-4 mr-1 text-red-500" />
-                      {day.likes}
-                    </div>
-                    <div className="flex items-center">
-                      <MessageSquare className="w-4 h-4 mr-1 text-green-500" />
-                      {day.comments}
-                    </div>
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-gray-500 text-center py-4">No recent activity data</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -199,28 +229,71 @@ const WriterAnalytics = () => {
           <CardHeader>
             <CardTitle>Top Performing Articles</CardTitle>
             <CardDescription>Based on engagement metrics</CardDescription>
+          </CardHeader>          <CardContent>
+            <div className="space-y-4">
+              {(analyticsData?.topArticles && analyticsData.topArticles.length > 0) ? (
+                analyticsData.topArticles.map((article, index) => (
+                  <div key={index} className="border rounded-lg p-4">
+                    <h4 className="font-medium text-gray-900 mb-2">{article.title}</h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="flex items-center">
+                        <Eye className="w-4 h-4 mr-2 text-blue-500" />
+                        {article.views} views
+                      </div>
+                      <div className="flex items-center">
+                        <Heart className="w-4 h-4 mr-2 text-red-500" />
+                        {article.likes} likes
+                      </div>
+                      <div className="flex items-center">
+                        <MessageSquare className="w-4 h-4 mr-2 text-green-500" />
+                        {article.comments} comments
+                      </div>
+                      <div className="flex items-center">
+                        <TrendingUp className="w-4 h-4 mr-2 text-purple-500" />
+                        {article.engagementRate}% engagement
+                      </div>
+                    </div>                    {article.category && (
+                      <div className="mt-2">
+                        <span className="inline-flex px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
+                          {typeof article.category === 'string' ? article.category : article.category.name}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-500 text-center py-4">No published articles yet</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Category Performance */}
+      {analyticsData.categoryStats && analyticsData.categoryStats.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Category Performance</CardTitle>
+            <CardDescription>How your articles perform by category</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {analyticsData.topArticles.map((article, index) => (
-                <div key={index} className="border rounded-lg p-4">
-                  <h4 className="font-medium text-gray-900 mb-2">{article.title}</h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="flex items-center">
-                      <Eye className="w-4 h-4 mr-2 text-blue-500" />
-                      {article.views} views
-                    </div>
-                    <div className="flex items-center">
-                      <Heart className="w-4 h-4 mr-2 text-red-500" />
-                      {article.likes} likes
-                    </div>
-                    <div className="flex items-center">
-                      <MessageSquare className="w-4 h-4 mr-2 text-green-500" />
-                      {article.comments} comments
-                    </div>
-                    <div className="flex items-center">
-                      <TrendingUp className="w-4 h-4 mr-2 text-purple-500" />
-                      {article.engagementRate}% engagement
+              {analyticsData.categoryStats.map((category, index) => (
+                <div key={index} className="flex items-center justify-between">
+                  <div>
+                    <span className="font-medium text-gray-900">{category.categoryName}</span>
+                    <p className="text-sm text-gray-500">{category.articleCount} articles</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex items-center space-x-4 text-sm">
+                      <div className="flex items-center">
+                        <Eye className="w-4 h-4 mr-1 text-blue-500" />
+                        {category.totalViews}
+                      </div>
+                      <div className="flex items-center">
+                        <Heart className="w-4 h-4 mr-1 text-red-500" />
+                        {category.totalLikes}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -228,7 +301,7 @@ const WriterAnalytics = () => {
             </div>
           </CardContent>
         </Card>
-      </div>
+      )}
 
       {/* Audience Insights */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -237,9 +310,8 @@ const WriterAnalytics = () => {
             <CardTitle>Top Countries</CardTitle>
             <CardDescription>Where your readers are from</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {analyticsData.audienceInsights.topCountries.map((country, index) => (
+          <CardContent>            <div className="space-y-3">
+              {(analyticsData?.audienceInsights?.topCountries || []).map((country, index) => (
                 <div key={index} className="flex items-center justify-between">
                   <span className="text-sm text-gray-900">{country.country}</span>
                   <div className="flex items-center space-x-2">
@@ -262,9 +334,8 @@ const WriterAnalytics = () => {
             <CardTitle>Device Types</CardTitle>
             <CardDescription>How readers access your content</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {analyticsData.audienceInsights.deviceTypes.map((device, index) => (
+          <CardContent>            <div className="space-y-3">
+              {(analyticsData?.audienceInsights?.deviceTypes || []).map((device, index) => (
                 <div key={index} className="flex items-center justify-between">
                   <span className="text-sm text-gray-900">{device.type}</span>
                   <div className="flex items-center space-x-2">
