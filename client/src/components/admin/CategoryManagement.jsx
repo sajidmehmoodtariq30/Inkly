@@ -441,7 +441,8 @@ const CategoryManagement = () => {
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Created</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Actions</th>
                 </tr>
-              </thead>              <tbody className="divide-y divide-gray-200">
+              </thead>
+              <tbody className="divide-y divide-gray-200">
                 {viewMode === 'flat' ? (
                   filteredCategories.map((category) => (
                     <CategoryRow
@@ -520,9 +521,9 @@ const CategoryRow = ({
           type="checkbox"
           checked={isSelected}
           onChange={onSelect}
-          className="rounded border-gray-300"
-        />
-      </td>      <td className="px-4 py-3">
+          className="rounded border-gray-300"        />
+      </td>
+      <td className="px-4 py-3">
         <div className="flex items-center space-x-3" style={{ paddingLeft: `${depth * 20}px` }}>
           {hasChildren ? (
             <button onClick={onToggleExpanded} className="text-gray-400 hover:text-gray-600">

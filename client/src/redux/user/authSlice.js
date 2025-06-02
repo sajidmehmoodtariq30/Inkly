@@ -57,7 +57,8 @@ const getStoredAuth = () => {
       return {
         user: JSON.parse(storedUser),
         token: storedToken,
-        isAuthenticated: true
+        isAuthenticated: true,
+        loading: false // Explicitly set loading to false when we have stored data
       }
     }
   } catch (error) {
@@ -69,7 +70,8 @@ const getStoredAuth = () => {
   return {
     user: null,
     token: null,
-    isAuthenticated: false
+    isAuthenticated: false,
+    loading: false // Set loading to false for no stored data case too
   }
 }
 
@@ -77,7 +79,7 @@ const initialState = {
   user: null,
   token: null,
   isAuthenticated: false,
-  loading: true,
+  loading: false, // Set default loading to false
   error: null,
   ...getStoredAuth()
 }

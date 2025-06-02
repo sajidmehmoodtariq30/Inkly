@@ -40,11 +40,7 @@ export const useAuth = () => {
   const isAuthenticated = useAppSelector(selectIsAuthenticated)
   const loading = useAppSelector(selectAuthLoading)
   const error = useAppSelector(selectAuthError)
-
   useEffect(() => {
-    // Set initial loading to false after checking stored auth
-    dispatch(setLoading(false))
-
     // Note: Firebase auth state listener is disabled for regular login
     // It's only used in GoogleLogin component for Google authentication
     // This prevents conflicts between Firebase auth and backend auth

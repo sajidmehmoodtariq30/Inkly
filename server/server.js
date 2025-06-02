@@ -25,9 +25,11 @@ app.get('/', (req, res) => {
 
 import userRouter from './routes/UserRoutes.js';
 import adminRouter from './routes/AdminRoutes.js';
+import writerRouter from './routes/WriterRoutes.js';
 
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/admin", adminRouter);
+app.use("/api/v1/writer", writerRouter);
 
 
 app.listen(Port, () => {
