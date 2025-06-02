@@ -506,9 +506,41 @@ const deleteArticle = asyncHandler(async (req, res) => {
 // Get categories
 const getCategories = asyncHandler(async (req, res) => {
     try {
-        const categories = await Category.find({ isVisible: true })
-            .select('name slug description')
-            .sort({ name: 1 });
+        // Get categories with article counts
+        const categories = await Category.aggregate([
+            { $match: { isVisible: true } },
+            {
+                $lookup: {
+                    from: 'articles',
+                    let: { categoryId: '$_id' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: { $eq: ['$category', '$$categoryId'] },
+                                status: { $in: ['published', 'draft'] }
+                            }
+                        }
+                    ],
+                    as: 'articles'
+                }
+            },
+            {
+                $addFields: {
+                    articleCount: { $size: '$articles' }
+                }
+            },
+            {
+                $project: {
+                    name: 1,
+                    slug: 1,
+                    description: 1,
+                    color: 1,
+                    icon: 1,
+                    articleCount: 1
+                }
+            },
+            { $sort: { name: 1 } }
+        ]);
         
         return res.status(200).json(
             new ApiResponse(200, categories, "Categories retrieved successfully")

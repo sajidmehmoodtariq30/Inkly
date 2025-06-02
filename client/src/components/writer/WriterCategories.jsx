@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -11,7 +11,8 @@ import {
   Trash2, 
   MoreHorizontal,
   Hash,
-  FileText
+  FileText,
+  Loader2
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -21,70 +22,74 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useApi } from '../../hooks/useApi'
+import { toast } from '../../utils/toast'
 
 const WriterCategories = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [newCategory, setNewCategory] = useState('')
+  const [categories, setCategories] = useState([])
+  const [loading, setLoading] = useState(true)
+  
+  const { get } = useApi()
 
-  // Mock data - replace with real data later
-  const categories = [
-    {
-      id: 1,
-      name: "Technology",
-      slug: "technology",
-      description: "Articles about technology, programming, and software development",
-      articleCount: 15,
-      color: "blue"
-    },
-    {
-      id: 2,
-      name: "Web Development",
-      slug: "web-development",
-      description: "Frontend and backend web development tutorials and guides",
-      articleCount: 8,
-      color: "green"
-    },
-    {
-      id: 3,
-      name: "JavaScript",
-      slug: "javascript",
-      description: "JavaScript programming language tutorials and best practices",
-      articleCount: 12,
-      color: "yellow"
-    },
-    {
-      id: 4,
-      name: "React",
-      slug: "react",
-      description: "React.js library tutorials, hooks, and component patterns",
-      articleCount: 6,
-      color: "purple"
-    },
-    {
-      id: 5,
-      name: "Career",
-      slug: "career",
-      description: "Career advice and professional development in tech",
-      articleCount: 4,
-      color: "pink"
+  // Fetch categories on component mount
+  useEffect(() => {
+    fetchCategories()
+  }, [])
+
+  const fetchCategories = async () => {
+    try {
+      setLoading(true)
+      const response = await get(`${import.meta.env.VITE_API_BASE_URL}writer/categories`)
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch categories')
+      }
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setCategories(data.data)
+      } else {
+        throw new Error(data.message || 'Failed to fetch categories')
+      }
+    } catch (error) {
+      toast.error('Failed to fetch categories')
+      console.error('Categories fetch error:', error)
+    } finally {
+      setLoading(false)
     }
-  ]
-
+  }
   const getColorClasses = (color) => {
-    const colors = {
-      blue: "bg-blue-100 text-blue-800 border-blue-200",
-      green: "bg-green-100 text-green-800 border-green-200",
-      yellow: "bg-yellow-100 text-yellow-800 border-yellow-200",
-      purple: "bg-purple-100 text-purple-800 border-purple-200",
-      pink: "bg-pink-100 text-pink-800 border-pink-200"
+    // Convert hex color to appropriate Tailwind classes or use a default
+    const colorMap = {
+      '#3B82F6': "bg-blue-100 text-blue-800 border-blue-200", // blue
+      '#10B981': "bg-green-100 text-green-800 border-green-200", // green  
+      '#F59E0B': "bg-yellow-100 text-yellow-800 border-yellow-200", // yellow
+      '#8B5CF6': "bg-purple-100 text-purple-800 border-purple-200", // purple
+      '#EC4899': "bg-pink-100 text-pink-800 border-pink-200", // pink
+      '#EF4444': "bg-red-100 text-red-800 border-red-200", // red
+      '#6B7280': "bg-gray-100 text-gray-800 border-gray-200", // gray
     }
-    return colors[color] || colors.blue
+    return colorMap[color] || "bg-blue-100 text-blue-800 border-blue-200"
   }
 
   const filteredCategories = categories.filter(category =>
     category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    category.description.toLowerCase().includes(searchTerm.toLowerCase())
+    category.description?.toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-6 h-6 animate-spin mr-2" />
+          <span>Loading categories...</span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -135,7 +140,7 @@ const WriterCategories = () => {
       {/* Categories Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredCategories.map((category) => (
-          <Card key={category.id} className="hover:shadow-md transition-shadow">
+          <Card key={category._id} className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
