@@ -18,6 +18,7 @@ import AllBlogs from './pages/AllBlogs'
 import Categories from './pages/Categories'
 import CategoryDetail from './pages/CategoryDetail'
 import Comments from './pages/Comments'
+import SearchResults from './pages/SearchResults'
 import AdminDashboard from './pages/AdminDashboard'
 import WriterDashboard from './pages/WriterDashboard'
 import WriterMain from './pages/WriterMain'
@@ -31,6 +32,7 @@ import WriterAnalytics from './components/writer/WriterAnalytics'
 import WriterCategories from './components/writer/WriterCategories'
 import WriterMediaLibrary from './components/writer/WriterMediaLibrary'
 import WriterSchedule from './components/writer/WriterSchedule'
+import ArticlePage from './pages/ArticlePage'
 
 
 const App = () => {
@@ -49,11 +51,13 @@ const App = () => {
               <Register />
             </PublicRoute>
           }
-          />          <Route path="/" element={<AppLayout />}>
+          />            <Route path="/" element={<AppLayout />}>
             <Route index element={<Home />} />
             <Route path="blogs" element={<AllBlogs />} />
             <Route path="categories" element={<Categories />} />
             <Route path="category/:slug" element={<CategoryDetail />} />
+            <Route path="article/:identifier" element={<ArticlePage />} />
+            <Route path="search" element={<SearchResults />} />
             <Route path="comments" element={<Comments />} />
           </Route>
           <Route path="profile" element={
@@ -83,6 +87,7 @@ const App = () => {
             <Route path="media" element={<WriterMediaLibrary />} />            <Route path="profile" element={<WriterProfile />} />
             <Route path="schedule" element={<WriterSchedule />} />
           </Route>
+          <Route path="/article/:id" element={<ArticlePage />} />
         </Routes>
         <ToastContainer
           position="top-right"

@@ -20,123 +20,91 @@ const Comments = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState('latest')
   const [error, setError] = useState(null)
-
-  // Mock data for now - replace with actual API call
-  const mockComments = [
-    {
-      id: 1,
-      content: "This is a fantastic article! The explanation of React hooks is very clear and the examples are practical. I've been struggling with useEffect and this really helped clarify things for me.",
-      author: {
-        name: "Alex Johnson",
-        avatar: "https://ui-avatars.com/api/?name=Alex+Johnson&background=6366f1&color=ffffff",
-        role: "Developer"
-      },
-      article: {
-        id: 1,
-        title: "Getting Started with React Hooks",
-        slug: "getting-started-with-react-hooks"
-      },
-      createdAt: "2024-03-15T10:30:00Z",
-      likes: 12,
-      replies: 3,
-      status: "approved"
-    },
-    {
-      id: 2,
-      content: "Great tutorial on API development! One question though - how would you handle authentication in a production environment?",
-      author: {
-        name: "Sarah Davis",
-        avatar: "https://ui-avatars.com/api/?name=Sarah+Davis&background=8b5cf6&color=ffffff",
-        role: "Student"
-      },
-      article: {
-        id: 2,
-        title: "Building Scalable APIs with Node.js",
-        slug: "building-scalable-apis-with-nodejs"
-      },
-      createdAt: "2024-03-14T15:45:00Z",
-      likes: 8,
-      replies: 1,
-      status: "approved"
-    },
-    {
-      id: 3,
-      content: "CSS Grid is amazing! I've been using Flexbox for everything but after reading this, I can see where Grid would be more appropriate. Thanks for the detailed comparison.",
-      author: {
-        name: "Mike Chen",
-        avatar: "https://ui-avatars.com/api/?name=Mike+Chen&background=f59e0b&color=ffffff",
-        role: "Designer"
-      },
-      article: {
-        id: 3,
-        title: "CSS Grid vs Flexbox: When to Use Which",
-        slug: "css-grid-vs-flexbox-when-to-use-which"
-      },
-      createdAt: "2024-03-13T09:20:00Z",
-      likes: 15,
-      replies: 2,
-      status: "approved"
-    },
-    {
-      id: 4,
-      content: "TypeScript has been a game-changer for our team. This article perfectly explains the benefits and migration strategies. Bookmarked for future reference!",
-      author: {
-        name: "Emily Rodriguez",
-        avatar: "https://ui-avatars.com/api/?name=Emily+Rodriguez&background=ef4444&color=ffffff",
-        role: "Team Lead"
-      },
-      article: {
-        id: 4,
-        title: "Introduction to TypeScript for JavaScript Developers",
-        slug: "introduction-to-typescript-for-javascript-developers"
-      },
-      createdAt: "2024-03-12T14:10:00Z",
-      likes: 20,
-      replies: 5,
-      status: "approved"
-    },
-    {
-      id: 5,
-      content: "Could you elaborate more on error handling? The article is great but I'd love to see more examples of edge cases.",
-      author: {
-        name: "David Kim",
-        avatar: "https://ui-avatars.com/api/?name=David+Kim&background=10b981&color=ffffff",
-        role: "Developer"
-      },
-      article: {
-        id: 2,
-        title: "Building Scalable APIs with Node.js",
-        slug: "building-scalable-apis-with-nodejs"
-      },
-      createdAt: "2024-03-11T11:30:00Z",
-      likes: 6,
-      replies: 0,
-      status: "pending"
-    }
-  ]
-
-  useEffect(() => {
-    // Simulate API call
-    const fetchComments = async () => {
-      try {
+  const [currentPage, setCurrentPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
+  // Fetch comments from published articles
+  const fetchComments = async (page = 1, append = false) => {
+    try {
+      if (!append) {
         setLoading(true)
-        // Replace this with actual API call
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        setComments(mockComments)
-      } catch (err) {
-        setError('Failed to fetch comments')
-      } finally {
+      }
+      setError(null)
+
+      // Fetch published articles with their comments
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}users/articles?page=${page}&limit=20&sortBy=publishedAt`)
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch articles')
+      }
+
+      const data = await response.json()
+      
+      if (data.success && data.data.articles) {
+        // Extract all approved comments from articles
+        const allComments = []
+        
+        data.data.articles.forEach(article => {
+          if (article.comments && article.comments.length > 0) {
+            // Add article context to each comment
+            article.comments.forEach(comment => {
+              if (comment.isApproved) {
+                allComments.push({
+                  id: comment.id,
+                  content: comment.content,
+                  author: {
+                    name: comment.user?.fullName || 'Anonymous',
+                    avatar: comment.user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.user?.fullName || 'Anonymous')}&background=6366f1&color=ffffff`,
+                    role: 'Reader' // Default role for public comments
+                  },
+                  article: {
+                    id: article.id,
+                    title: article.title,
+                    slug: article.slug
+                  },
+                  createdAt: comment.createdAt,
+                  likes: 0, // Comments don't have likes in the current model
+                  replies: 0, // Comments don't have replies in the current model
+                  status: 'approved'
+                })
+              }
+            })
+          }
+        })
+
+        if (append) {
+          setComments(prev => [...prev, ...allComments])
+        } else {
+          setComments(allComments)
+        }
+
+        // Check if there are more pages
+        setHasMore(data.data.pagination.hasNextPage)
+        setCurrentPage(page)
+      } else {
+        throw new Error(data.message || 'Failed to fetch comments')
+      }
+    } catch (err) {
+      console.error('Error fetching comments:', err)
+      setError('Failed to fetch comments. Please try again.')
+    } finally {
+      if (!append) {
         setLoading(false)
       }
     }
+  }
 
+  useEffect(() => {
     fetchComments()
   }, [])
-
   const filteredComments = comments.filter(comment => {
-    const matchesSearch = comment.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         comment.author.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         comment.article.title.toLowerCase().includes(searchTerm.toLowerCase())
+    if (!comment || !comment.content || !comment.author || !comment.article) {
+      return false
+    }
+    
+    const matchesSearch = 
+      comment.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      comment.author.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      comment.article.title.toLowerCase().includes(searchTerm.toLowerCase())
     
     return matchesSearch
   })
@@ -148,22 +116,27 @@ const Comments = () => {
       case 'oldest':
         return new Date(a.createdAt) - new Date(b.createdAt)
       case 'popular':
-        return b.likes - a.likes
+        return (b.likes || 0) - (a.likes || 0)
       case 'replies':
-        return b.replies - a.replies
+        return (b.replies || 0) - (a.replies || 0)
       default:
         return 0
     }
   })
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
+    if (!dateString) return 'Unknown date'
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } catch {
+      return 'Invalid date'
+    }
   }
 
   const getStatusColor = (status) => {
@@ -176,6 +149,12 @@ const Comments = () => {
         return 'bg-red-100 text-red-800'
       default:
         return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const handleLoadMore = () => {
+    if (hasMore && !loading) {
+      fetchComments(currentPage + 1, true)
     }
   }
 
@@ -260,21 +239,22 @@ const Comments = () => {
           {sortedComments.map((comment) => (
             <Card key={comment.id} className="hover:shadow-md transition-shadow duration-300">
               <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
+                <div className="flex items-start justify-between">                  <div className="flex items-center gap-3">
                     <img
-                      src={comment.author.avatar}
-                      alt={comment.author.name}
+                      src={comment.author?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.author?.name || 'Anonymous')}&background=6366f1&color=ffffff`}
+                      alt={comment.author?.name || 'Anonymous'}
                       className="w-10 h-10 rounded-full"
+                      onError={(e) => {
+                        e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.author?.name || 'Anonymous')}&background=6366f1&color=ffffff`
+                      }}
                     />
                     <div>
-                      <h3 className="font-semibold text-gray-900">{comment.author.name}</h3>
-                      <p className="text-sm text-gray-500">{comment.author.role}</p>
+                      <h3 className="font-semibold text-gray-900">{comment.author?.name || 'Anonymous'}</h3>
+                      <p className="text-sm text-gray-500">{comment.author?.role || 'Reader'}</p>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className={getStatusColor(comment.status)} variant="secondary">
-                      {comment.status}
+                  </div>                  <div className="flex items-center gap-2">
+                    <Badge className={getStatusColor(comment.status || 'approved')} variant="secondary">
+                      {comment.status || 'approved'}
                     </Badge>
                     <div className="flex items-center gap-1 text-xs text-gray-500">
                       <Calendar className="h-3 w-3" />
@@ -298,7 +278,7 @@ const Comments = () => {
                       <h4 className="font-medium text-gray-900">{comment.article.title}</h4>
                     </div>
                     <Link
-                      to={`/blog/${comment.article.id}`}
+                      to={`/article/${comment.article.id}`}
                       className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium"
                     >
                       View Article
@@ -335,13 +315,15 @@ const Comments = () => {
             </Card>
           ))}
         </div>
-      )}
-
-      {/* Load More Button */}
-      {sortedComments.length > 0 && (
+      )}      {/* Load More Button */}
+      {sortedComments.length > 0 && hasMore && (
         <div className="text-center mt-8">
-          <Button variant="outline">
-            Load More Comments
+          <Button 
+            variant="outline" 
+            onClick={handleLoadMore}
+            disabled={loading}
+          >
+            {loading ? 'Loading...' : 'Load More Comments'}
           </Button>
         </div>
       )}

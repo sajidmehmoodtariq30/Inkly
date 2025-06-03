@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
 import { 
@@ -13,65 +13,53 @@ import {
   MoreHorizontal,
   Heart,
   MessageSquare,
-  TrendingUp
+  TrendingUp,
+  Loader2
 } from 'lucide-react'
 
 const ArticleManagement = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [sortBy, setSortBy] = useState('updated')
+  const [articles, setArticles] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
-  // Mock data - replace with real data later
-  const articles = [
-    {
-      id: 1,
-      title: "Getting Started with React Hooks",
-      status: "published",
-      views: 1234,
-      likes: 45,
-      comments: 12,
-      publishedAt: "2024-01-15T10:00:00Z",
-      updatedAt: "2024-01-15T10:00:00Z",
-      readingTime: "5 min",
-      excerpt: "Learn the fundamentals of React Hooks and how to use them effectively in your applications."
-    },
-    {
-      id: 2,
-      title: "Advanced JavaScript Patterns",
-      status: "draft",
-      views: 0,
-      likes: 0,
-      comments: 0,
-      publishedAt: null,
-      updatedAt: "2024-01-14T15:30:00Z",
-      readingTime: "8 min",
-      excerpt: "Explore advanced JavaScript design patterns that will make you a better developer."
-    },
-    {
-      id: 3,
-      title: "Building Scalable Web Applications",
-      status: "published",
-      views: 892,
-      likes: 67,
-      comments: 18,
-      publishedAt: "2024-01-12T09:15:00Z",
-      updatedAt: "2024-01-12T09:15:00Z",
-      readingTime: "12 min",
-      excerpt: "A comprehensive guide to building web applications that scale with your business."
-    },
-    {
-      id: 4,
-      title: "Understanding TypeScript Generics",
-      status: "review",
-      views: 0,
-      likes: 0,
-      comments: 0,
-      publishedAt: null,
-      updatedAt: "2024-01-10T14:20:00Z",
-      readingTime: "6 min",
-      excerpt: "Master TypeScript generics to write more flexible and reusable code."
+  useEffect(() => {
+    fetchArticles()
+  }, [])
+
+  const fetchArticles = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}writer/articles`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch articles')
+      }
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setArticles(data.data || [])
+      } else {
+        throw new Error(data.message || 'Failed to fetch articles')
+      }
+    } catch (error) {
+      console.error('Articles fetch error:', error)
+      setError(error.message)
+      setArticles([])
+    } finally {
+      setLoading(false)
     }
-  ]
+  }
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -90,13 +78,50 @@ const ArticleManagement = () => {
       default: return <FileText className="w-4 h-4" />
     }
   }
-
   const filteredArticles = articles.filter(article => {
-    const matchesSearch = article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         article.excerpt.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesSearch = article.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         article.excerpt?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === 'all' || article.status === statusFilter
     return matchesSearch && matchesStatus
   })
+
+  const sortedArticles = filteredArticles.sort((a, b) => {
+    switch (sortBy) {
+      case 'updated':
+        return new Date(b.updatedAt || b.updated_at) - new Date(a.updatedAt || a.updated_at)
+      case 'created':
+        return new Date(b.createdAt || b.created_at) - new Date(a.createdAt || a.created_at)
+      case 'title':
+        return a.title?.localeCompare(b.title) || 0
+      case 'views':
+        return (b.views || 0) - (a.views || 0)
+      default:
+        return 0
+    }
+  })
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="flex items-center space-x-2">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span>Loading articles...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="text-center p-8">
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Articles</h2>
+        <p className="text-gray-600 mb-4">{error}</p>
+        <Button onClick={fetchArticles}>
+          Try Again
+        </Button>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -153,12 +178,10 @@ const ArticleManagement = () => {
             </select>
           </div>
         </CardContent>
-      </Card>
-
-      {/* Articles Grid */}
+      </Card>      {/* Articles Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredArticles.map((article) => (
-          <Card key={article.id} className="hover:shadow-lg transition-shadow">
+        {sortedArticles.map((article) => (
+          <Card key={article._id || article.id} className="hover:shadow-lg transition-shadow">
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="flex items-center space-x-2">
@@ -173,7 +196,7 @@ const ArticleManagement = () => {
               </div>
               <CardTitle className="text-lg">{article.title}</CardTitle>
               <CardDescription className="line-clamp-2">
-                {article.excerpt}
+                {article.excerpt || article.content?.substring(0, 120) + '...'}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -183,29 +206,29 @@ const ArticleManagement = () => {
                   <div className="flex items-center space-x-4">
                     <div className="flex items-center">
                       <Eye className="w-4 h-4 mr-1" />
-                      {article.views}
+                      {article.views || 0}
                     </div>
                     <div className="flex items-center">
                       <Heart className="w-4 h-4 mr-1" />
-                      {article.likes}
+                      {article.likes || 0}
                     </div>
                     <div className="flex items-center">
                       <MessageSquare className="w-4 h-4 mr-1" />
-                      {article.comments}
+                      {article.comments || 0}
                     </div>
                   </div>
                   <div className="flex items-center">
                     <Clock className="w-4 h-4 mr-1" />
-                    {article.readingTime}
+                    {article.readingTime || article.reading_time || 'N/A'}
                   </div>
                 </div>
 
                 {/* Date Info */}
                 <div className="text-xs text-gray-500">
-                  {article.publishedAt ? (
-                    <div>Published {new Date(article.publishedAt).toLocaleDateString()}</div>
+                  {article.publishedAt || article.published_at ? (
+                    <div>Published {new Date(article.publishedAt || article.published_at).toLocaleDateString()}</div>
                   ) : (
-                    <div>Last updated {new Date(article.updatedAt).toLocaleDateString()}</div>
+                    <div>Last updated {new Date(article.updatedAt || article.updated_at).toLocaleDateString()}</div>
                   )}
                 </div>
 
@@ -229,7 +252,7 @@ const ArticleManagement = () => {
       </div>
 
       {/* Empty State */}
-      {filteredArticles.length === 0 && (
+      {sortedArticles.length === 0 && (
         <Card>
           <CardContent className="text-center py-12">
             <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
@@ -239,7 +262,7 @@ const ArticleManagement = () => {
                 ? 'Try adjusting your search or filters'
                 : 'Get started by creating your first article'}
             </p>
-            <Button className="bg-blue-600 hover:bg-blue-700">
+            <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => window.location.href = '/dashboard/write'}>
               <Plus className="w-4 h-4 mr-2" />
               Create Article
             </Button>

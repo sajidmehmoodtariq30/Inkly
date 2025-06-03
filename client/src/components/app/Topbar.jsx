@@ -2,7 +2,7 @@ import React from 'react'
 import { SidebarTrigger, useSidebar } from '../ui/sidebar'
 import logo from '../../assets/logo.png'
 import { Button } from '../ui/button'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { LogInIcon, LogOutIcon } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import Searchbox from './Searchbox'
@@ -10,6 +10,7 @@ import Searchbox from './Searchbox'
 const Topbar = () => {
   const { state, isMobile } = useSidebar()
   const { user, logout, loading } = useAuth()
+  const navigate = useNavigate()
   
   // Calculate the left offset for the topbar when sidebar is open
   const sidebarWidth = '16rem' // This matches SIDEBAR_WIDTH from sidebar.jsx
@@ -20,6 +21,12 @@ const Topbar = () => {
       await logout()
     } catch (error) {
       console.error('Logout failed:', error)
+    }
+  }
+
+  const handleSearch = (searchTerm) => {
+    if (searchTerm.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchTerm.trim())}`)
     }
   }
   
@@ -34,10 +41,9 @@ const Topbar = () => {
       <div className='flex items-center gap-2'>
         <SidebarTrigger />
         <img src={logo} alt="logo" className='w-24' />
-      </div>
-      <div>
-        <Searchbox />
       </div>      <div>
+        <Searchbox onSearch={handleSearch} placeholder="Search articles..." />
+      </div><div>
         {loading ? (
           <div className="w-32 h-10 bg-gray-200 animate-pulse rounded-full"></div>
         ) : user ? (

@@ -8,6 +8,8 @@ import {
     getCurrentUser,
     updateUser,
     getPublicCategories,
+    getPublicArticles,
+    getPublicArticle,
 } from "../controllers/AuthController.js";
 import { upload } from "../middleware/multerMiddleware.js";
 import { verifyJWT } from "../middleware/authMiddleware.js";
@@ -25,6 +27,8 @@ router.route("/googleLogin").post(GoogleLogin);
 
 // public routes
 router.route("/categories").get(getPublicCategories);
+router.route("/articles").get(getPublicArticles);
+router.route("/articles/:identifier").get(getPublicArticle);
 
 // secured Routes
 router.route("/logout").post(verifyJWT, logoutUser);

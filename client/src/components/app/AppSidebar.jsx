@@ -32,13 +32,12 @@ const AppSidebar = ({ items }) => {
   
   const [categories, setCategories] = useState([])
   const [categoriesLoading, setCategoriesLoading] = useState(true)
-
   // Fetch categories on component mount
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         setCategoriesLoading(true)
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/users/categories`)
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}users/categories`)
         
         if (response.ok) {
           const data = await response.json()
@@ -94,15 +93,6 @@ const AppSidebar = ({ items }) => {
           <SidebarGroupLabel>Categories</SidebarGroupLabel>
           <SidebarGroupContent className={'bg-white'}>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <Link to="/categories">
-                    <DotIcon />
-                    <span>All Categories</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              
               {categoriesLoading ? (
                 <SidebarMenuItem>
                   <div className="flex items-center gap-2 p-2 text-sm text-gray-500">

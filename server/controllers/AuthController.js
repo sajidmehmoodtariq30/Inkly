@@ -2,6 +2,7 @@ import asyncHandler from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/UserModel.js";
 import { Category } from "../models/CategoryModel.js";
+import { Article } from "../models/ArticleModel.js";
 import { uploadOnCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
@@ -448,11 +449,41 @@ const updateUser = asyncHandler(async (req, res) => {
 // @access  Public
 const getPublicCategories = asyncHandler(async (req, res) => {
     try {
-        const categories = await Category.find({ 
-            isVisible: true 
-        })
-        .select('name slug description color icon articleCount')
-        .sort({ name: 1 });
+        const categories = await Category.aggregate([
+            { $match: { isVisible: true } },
+            {
+                $lookup: {
+                    from: 'articles',
+                    let: { categoryId: '$_id' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: { $eq: ['$category', '$$categoryId'] },
+                                status: 'published',
+                                isArchived: false
+                            }
+                        }
+                    ],
+                    as: 'articles'
+                }
+            },
+            {
+                $addFields: {
+                    articleCount: { $size: '$articles' }
+                }
+            },
+            {
+                $project: {
+                    name: 1,
+                    slug: 1,
+                    description: 1,
+                    color: 1,
+                    icon: 1,
+                    articleCount: 1
+                }
+            },
+            { $sort: { name: 1 } }
+        ]);
 
         return res.status(200).json(
             new ApiResponse(200, {
@@ -466,13 +497,304 @@ const getPublicCategories = asyncHandler(async (req, res) => {
     }
 });
 
+// @desc    Get all published articles
+// @route   GET /api/v1/users/articles
+// @access  Public
+const getPublicArticles = asyncHandler(async (req, res) => {
+    try {
+        const { page = 1, limit = 10, category, search, sortBy = 'publishedAt' } = req.query;
+        const skip = (page - 1) * limit;
+
+        // Build query for published articles only
+        let query = {
+            status: 'published',
+            isArchived: false
+        };
+
+        // Add category filter if provided
+        if (category) {
+            query.category = category;
+        }
+
+        // Add search functionality
+        if (search) {
+            query.$or = [
+                { title: { $regex: search, $options: 'i' } },
+                { excerpt: { $regex: search, $options: 'i' } },
+                { tags: { $in: [new RegExp(search, 'i')] } }
+            ];
+        }
+
+        // Define sort options
+        let sortOptions = {};
+        switch (sortBy) {
+            case 'views':
+                sortOptions = { views: -1 };
+                break;
+            case 'likes':
+                sortOptions = { 'likes': -1 };
+                break;
+            case 'title':
+                sortOptions = { title: 1 };
+                break;
+            default:
+                sortOptions = { publishedAt: -1 };
+        }
+
+        const articles = await Article.find(query)
+            .populate('author', 'fullName avatar')
+            .populate('category', 'name slug color')
+            .sort(sortOptions)
+            .skip(skip)
+            .limit(parseInt(limit))
+            .select('title slug excerpt featuredImage views likes publishedAt readingTime tags');
+
+        const totalArticles = await Article.countDocuments(query);
+        const totalPages = Math.ceil(totalArticles / limit);
+
+        const formattedArticles = articles.map(article => ({
+            id: article._id,
+            title: article.title,
+            slug: article.slug,
+            excerpt: article.excerpt,
+            featuredImage: article.featuredImage,
+            views: article.views,
+            likes: article.likes.length,
+            publishedAt: article.publishedAt,
+            readingTime: article.readingTime,
+            tags: article.tags,
+            author: {
+                id: article.author._id,
+                fullName: article.author.fullName,
+                avatar: article.author.avatar
+            },
+            category: {
+                id: article.category._id,
+                name: article.category.name,
+                slug: article.category.slug,
+                color: article.category.color
+            }
+        }));
+
+        return res.status(200).json(
+            new ApiResponse(200, {
+                articles: formattedArticles,
+                pagination: {
+                    currentPage: parseInt(page),
+                    totalPages,
+                    totalArticles,
+                    hasNextPage: page < totalPages,
+                    hasPrevPage: page > 1
+                }
+            }, "Published articles retrieved successfully")
+        );
+
+    } catch (error) {
+        console.error("Error in getPublicArticles:", error);
+        throw new ApiError(500, "Error retrieving articles");
+    }
+});
+
+// @desc    Get single published article by ID or slug
+// @route   GET /api/v1/users/articles/:identifier
+// @access  Public
+const getPublicArticle = asyncHandler(async (req, res) => {
+    try {
+        const { identifier } = req.params;
+
+        // Try to find by ID first, then by slug
+        let query = {
+            status: 'published',
+            isArchived: false
+        };
+
+        // Check if identifier is a valid ObjectId
+        if (identifier.match(/^[0-9a-fA-F]{24}$/)) {
+            query._id = identifier;
+        } else {
+            query.slug = identifier;
+        }
+
+        const article = await Article.findOne(query)
+            .populate('author', 'fullName avatar bio')
+            .populate('category', 'name slug color description')
+            .populate({
+                path: 'comments',
+                match: { isApproved: true },
+                populate: {
+                    path: 'user',
+                    select: 'fullName avatar'
+                },
+                options: { sort: { createdAt: -1 } }
+            });
+
+        if (!article) {
+            throw new ApiError(404, "Article not found");
+        }
+
+        // Increment view count
+        await Article.findByIdAndUpdate(article._id, {
+            $inc: { views: 1 }
+        });
+
+        // Get related articles from same category
+        const relatedArticles = await Article.find({
+            category: article.category._id,
+            _id: { $ne: article._id },
+            status: 'published',
+            isArchived: false
+        })
+        .populate('author', 'fullName avatar')
+        .sort({ publishedAt: -1 })
+        .limit(3)
+        .select('title slug excerpt featuredImage views likes publishedAt readingTime');
+
+        const formattedArticle = {
+            id: article._id,
+            title: article.title,
+            slug: article.slug,
+            content: article.content,
+            excerpt: article.excerpt,
+            featuredImage: article.featuredImage,
+            views: article.views + 1, // Include the increment
+            likes: article.likes.length,
+            publishedAt: article.publishedAt,
+            readingTime: article.readingTime,
+            tags: article.tags,
+            author: {
+                id: article.author._id,
+                fullName: article.author.fullName,
+                avatar: article.author.avatar,
+                bio: article.author.bio
+            },
+            category: {
+                id: article.category._id,
+                name: article.category.name,
+                slug: article.category.slug,
+                color: article.category.color,
+                description: article.category.description
+            },
+            comments: article.comments.map(comment => ({
+                id: comment._id,
+                content: comment.content,
+                createdAt: comment.createdAt,
+                user: {
+                    id: comment.user._id,
+                    fullName: comment.user.fullName,
+                    avatar: comment.user.avatar
+                }
+            })),
+            relatedArticles: relatedArticles.map(related => ({
+                id: related._id,
+                title: related.title,
+                slug: related.slug,
+                excerpt: related.excerpt,
+                featuredImage: related.featuredImage,
+                views: related.views,
+                likes: related.likes.length,
+                publishedAt: related.publishedAt,
+                readingTime: related.readingTime,
+                author: {
+                    fullName: related.author.fullName,
+                    avatar: related.author.avatar
+                }
+            }))
+        };
+
+        return res.status(200).json(
+            new ApiResponse(200, formattedArticle, "Article retrieved successfully")
+        );
+
+    } catch (error) {
+        console.error("Error in getPublicArticle:", error);
+        throw new ApiError(500, "Error retrieving article");
+    }
+});
+
+// @desc    Get public platform statistics  
+// @route   GET /api/v1/stats
+// @access  Public
+const getPublicStats = asyncHandler(async (req, res) => {
+    try {
+        // Get total published articles count
+        const totalArticles = await Article.countDocuments({ 
+            status: 'published',
+            isArchived: false 
+        });
+
+        // Get total writers count (users with writer role who have published articles)
+        const totalWriters = await User.countDocuments({ 
+            role: 'writer' 
+        });
+
+        // Get total views from all published articles
+        const viewsAggregation = await Article.aggregate([
+            { 
+                $match: { 
+                    status: 'published',
+                    isArchived: false 
+                } 
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalViews: { $sum: '$views' }
+                }
+            }
+        ]);
+
+        const totalViews = viewsAggregation[0]?.totalViews || 0;
+
+        // Calculate monthly views (articles published in last 30 days)
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        const monthlyViewsAggregation = await Article.aggregate([
+            { 
+                $match: { 
+                    status: 'published',
+                    isArchived: false,
+                    publishedAt: { $gte: thirtyDaysAgo }
+                } 
+            },
+            {
+                $group: {
+                    _id: null,
+                    monthlyViews: { $sum: '$views' }
+                }
+            }
+        ]);
+
+        const monthlyViews = monthlyViewsAggregation[0]?.monthlyViews || 0;
+
+        const stats = {
+            totalArticles,
+            totalWriters,
+            totalViews,
+            monthlyViews,
+            rating: "5.0" // Static rating for now
+        };
+
+        return res.status(200).json(
+            new ApiResponse(200, stats, "Public statistics retrieved successfully")
+        );
+
+    } catch (error) {
+        console.error("Error in getPublicStats:", error);
+        throw new ApiError(500, "Error retrieving statistics");
+    }
+});
+
 export {
     registerUser,
     loginUser,
-    GoogleLogin,
     logoutUser,
+    GoogleLogin,
     refreshAccessToken,
     getCurrentUser,
     updateUser,
     getPublicCategories,
+    getPublicArticles,
+    getPublicArticle,
+    getPublicStats
 };

@@ -33,6 +33,11 @@ app.get('/', (req, res) => {
 import userRouter from './routes/UserRoutes.js';
 import adminRouter from './routes/AdminRoutes.js';
 import writerRouter from './routes/WriterRoutes.js';
+import { getPublicCategories, getPublicStats } from './controllers/AuthController.js';
+
+// Direct public routes (without /users prefix)
+app.get("/api/v1/categories", getPublicCategories);
+app.get("/api/v1/stats", getPublicStats);
 
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/admin", adminRouter);

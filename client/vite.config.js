@@ -18,7 +18,7 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: 'https://inklyserver.vercel.app',
+        target: 'http://localhost:3000',
         changeOrigin: true,
         secure: true
       }

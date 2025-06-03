@@ -22,107 +22,71 @@ const AllBlogs = () => {
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [sortBy, setSortBy] = useState('latest')
   const [error, setError] = useState(null)
-
-  // Mock data for now - replace with actual API call
-  const mockBlogs = [
-    {
-      id: 1,
-      title: "Getting Started with React Hooks",
-      excerpt: "Learn the fundamentals of React Hooks and how they can simplify your component logic...",
-      author: {
-        name: "John Doe",
-        avatar: "https://ui-avatars.com/api/?name=John+Doe&background=6366f1&color=ffffff"
-      },
-      publishedAt: "2024-03-15",
-      readTime: "5 min read",
-      category: "React",
-      tags: ["React", "JavaScript", "Hooks"],
-      views: 1250,
-      likes: 45,
-      comments: 12,
-      featured: true,
-      image: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=600&h=400&fit=crop"
-    },
-    {
-      id: 2,
-      title: "Building Scalable APIs with Node.js",
-      excerpt: "A comprehensive guide to creating robust and scalable APIs using Node.js and Express...",
-      author: {
-        name: "Sarah Chen",
-        avatar: "https://ui-avatars.com/api/?name=Sarah+Chen&background=8b5cf6&color=ffffff"
-      },
-      publishedAt: "2024-03-12",
-      readTime: "8 min read",
-      category: "Backend",
-      tags: ["Node.js", "API", "Backend"],
-      views: 890,
-      likes: 67,
-      comments: 23,
-      featured: false,
-      image: "https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=600&h=400&fit=crop"
-    },
-    {
-      id: 3,
-      title: "CSS Grid vs Flexbox: When to Use Which",
-      excerpt: "Understanding the differences between CSS Grid and Flexbox and when to use each layout method...",
-      author: {
-        name: "Alex Rodriguez",
-        avatar: "https://ui-avatars.com/api/?name=Alex+Rodriguez&background=f59e0b&color=ffffff"
-      },
-      publishedAt: "2024-03-10",
-      readTime: "6 min read",
-      category: "CSS",
-      tags: ["CSS", "Layout", "Grid", "Flexbox"],
-      views: 2100,
-      likes: 89,
-      comments: 34,
-      featured: true,
-      image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&h=400&fit=crop"
-    },
-    {
-      id: 4,
-      title: "Introduction to TypeScript for JavaScript Developers",
-      excerpt: "Make the transition from JavaScript to TypeScript with this beginner-friendly guide...",
-      author: {
-        name: "Emma Wilson",
-        avatar: "https://ui-avatars.com/api/?name=Emma+Wilson&background=ef4444&color=ffffff"
-      },
-      publishedAt: "2024-03-08",
-      readTime: "7 min read",
-      category: "TypeScript",
-      tags: ["TypeScript", "JavaScript", "Programming"],
-      views: 1675,
-      likes: 78,
-      comments: 19,
-      featured: false,
-      image: "https://images.unsplash.com/photo-1516116216624-53e697fedbea?w=600&h=400&fit=crop"
-    }
-  ]
-
-  const categories = ["all", "React", "Backend", "CSS", "TypeScript", "JavaScript"]
+  const [categories, setCategories] = useState(['all'])
 
   useEffect(() => {
-    // Simulate API call
-    const fetchBlogs = async () => {
-      try {
-        setLoading(true)
-        // Replace this with actual API call
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        setBlogs(mockBlogs)
-      } catch (err) {
-        setError('Failed to fetch blogs')
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchBlogs()
-  }, [])
+    fetchCategories()
+  }, [selectedCategory, sortBy])
+
+  const fetchCategories = async () => {    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}categories`)
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.data && data.data.categories) {
+          const categoryNames = ['all', ...data.data.categories.map(cat => cat.name)]
+          setCategories(categoryNames)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch categories:', err)
+    }
+  }
+
+  const fetchBlogs = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const params = new URLSearchParams({
+        sort: sortBy,
+        limit: '20'
+      })
+      
+      if (selectedCategory !== 'all') {
+        params.append('category', selectedCategory)
+      }
+      
+      if (searchTerm) {
+        params.append('search', searchTerm)
+      }
+      
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}users/articles?${params}`)
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch articles')
+      }
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setBlogs(data.data.articles || [])
+      } else {
+        throw new Error(data.message || 'Failed to fetch articles')
+      }
+    } catch (err) {
+      setError('Failed to fetch articles')
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const filteredBlogs = blogs.filter(blog => {
     const matchesSearch = blog.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          blog.excerpt.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         blog.author.name.toLowerCase().includes(searchTerm.toLowerCase())
+                         blog.author.fullName.toLowerCase().includes(searchTerm.toLowerCase())
     
     const matchesCategory = selectedCategory === 'all' || blog.category === selectedCategory
     
@@ -262,9 +226,8 @@ const AllBlogs = () => {
 
               <CardHeader className="pb-3">
                 {/* Category and Featured Badge */}
-                <div className="flex items-center justify-between mb-2">
-                  <Badge variant="secondary" className="text-xs">
-                    {blog.category}
+                <div className="flex items-center justify-between mb-2">                  <Badge variant="secondary" className="text-xs">
+                    {typeof blog.category === 'string' ? blog.category : blog.category?.name || 'Uncategorized'}
                   </Badge>
                   {blog.featured && (
                     <Badge variant="default" className="text-xs bg-yellow-500 hover:bg-yellow-600">
@@ -273,9 +236,8 @@ const AllBlogs = () => {
                   )}
                 </div>
 
-                {/* Title */}
-                <CardTitle className="line-clamp-2 hover:text-blue-600 transition-colors">
-                  <Link to={`/blog/${blog.id}`} className="text-lg">
+                {/* Title */}                <CardTitle className="line-clamp-2 hover:text-blue-600 transition-colors">
+                  <Link to={`/article/${blog.id}`} className="text-lg">
                     {blog.title}
                   </Link>
                 </CardTitle>
@@ -304,10 +266,10 @@ const AllBlogs = () => {
                   <div className="flex items-center gap-2">
                     <img
                       src={blog.author.avatar}
-                      alt={blog.author.name}
+                      alt={blog.author.fullName}
                       className="w-6 h-6 rounded-full"
                     />
-                    <span>{blog.author.name}</span>
+                    <span>{blog.author.fullName}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />

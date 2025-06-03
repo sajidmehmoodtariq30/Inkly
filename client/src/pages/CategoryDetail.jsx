@@ -25,46 +25,44 @@ const CategoryDetail = () => {
   useEffect(() => {
     fetchCategoryAndArticles()
   }, [slug])
-
   const fetchCategoryAndArticles = async () => {
     try {
       setLoading(true)
+      setError(null)
       
       // Fetch category details
-      const categoryResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/users/categories`)
-      if (categoryResponse.ok) {
-        const categoryData = await categoryResponse.json()
-        const foundCategory = categoryData.data.categories.find(cat => cat.slug === slug)
-        
-        if (foundCategory) {
-          setCategory(foundCategory)
-        } else {
-          setError('Category not found')
-        }
+      const categoryResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}users/categories`)
+      if (!categoryResponse.ok) {
+        throw new Error('Failed to fetch categories')
       }
       
-      // TODO: Fetch articles for this category when API is available
-      // For now, using mock data
-      setArticles([
-        {
-          id: 1,
-          title: `Getting Started with ${slug}`,
-          excerpt: `Learn the basics of ${slug} and how to implement it in your projects.`,
-          author: 'John Doe',
-          publishedAt: '2024-01-15',
-          readTime: '5 min read',
-          tags: [slug, 'beginner', 'tutorial']
-        },
-        {
-          id: 2,
-          title: `Advanced ${slug} Techniques`,
-          excerpt: `Dive deep into advanced concepts and best practices for ${slug}.`,
-          author: 'Jane Smith',
-          publishedAt: '2024-01-10',
-          readTime: '8 min read',
-          tags: [slug, 'advanced', 'tips']
-        }
-      ])
+      const categoryData = await categoryResponse.json()
+      if (!categoryData.success) {
+        throw new Error(categoryData.message || 'Failed to fetch categories')
+      }
+      
+      const foundCategory = categoryData.data.categories.find(cat => cat.slug === slug)
+      
+      if (!foundCategory) {
+        setError('Category not found')
+        return
+      }
+      
+      setCategory(foundCategory)
+      
+      // Fetch articles for this specific category
+      const articlesResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}users/articles?category=${foundCategory._id}`)
+      if (!articlesResponse.ok) {
+        throw new Error('Failed to fetch articles')
+      }
+      
+      const articlesData = await articlesResponse.json()
+      if (articlesData.success) {
+        setArticles(articlesData.data.articles)
+      } else {
+        // If no articles found, set empty array (no error)
+        setArticles([])
+      }
       
     } catch (err) {
       setError('Failed to fetch category data')
@@ -169,24 +167,37 @@ const CategoryDetail = () => {
                 : 'No articles available in this category yet.'
               }
             </p>
-          </div>
-        ) : (
+          </div>        ) : (
           filteredArticles.map((article) => (
             <Card key={article.id} className="hover:shadow-lg transition-shadow">
               <CardContent className="p-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex-1">
+                    {/* Featured Image */}
+                    {article.featuredImage && (
+                      <div className="mb-4">
+                        <img 
+                          src={article.featuredImage} 
+                          alt={article.title}
+                          className="w-full h-48 object-cover rounded-lg"
+                        />
+                      </div>
+                    )}
+                    
                     <h3 className="text-xl font-semibold text-gray-900 mb-2 hover:text-blue-600">
-                      <Link to={`/article/${article.id}`}>
+                      <Link to={`/article/${article.slug || article.id}`}>
                         {article.title}
                       </Link>
                     </h3>
-                    <p className="text-gray-600 mb-4">{article.excerpt}</p>
+                    
+                    {article.excerpt && (
+                      <p className="text-gray-600 mb-4">{article.excerpt}</p>
+                    )}
                     
                     <div className="flex items-center gap-4 text-sm text-gray-500">
                       <div className="flex items-center gap-2">
                         <User className="h-4 w-4" />
-                        <span>{article.author}</span>
+                        <span>{article.author?.fullName || 'Unknown Author'}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4" />
@@ -194,21 +205,29 @@ const CategoryDetail = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4" />
-                        <span>{article.readTime}</span>
+                        <span>{article.readingTime} min read</span>
                       </div>
+                      {article.views !== undefined && (
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="h-4 w-4" />
+                          <span>{article.views} views</span>
+                        </div>
+                      )}
                     </div>
                     
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      {article.tags.map((tag) => (
-                        <Badge key={tag} variant="secondary" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
+                    {article.tags && article.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {article.tags.map((tag, index) => (
+                          <Badge key={index} variant="secondary" className="text-xs">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   
                   <div className="flex-shrink-0">
-                    <Link to={`/article/${article.id}`}>
+                    <Link to={`/article/${article.slug || article.id}`}>
                       <Button variant="outline" size="sm">
                         Read More
                       </Button>
