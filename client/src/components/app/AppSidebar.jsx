@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Sidebar,
   SidebarContent,
@@ -21,12 +21,40 @@ import logo from '../../assets/logo.png'
 import { Link, useNavigate } from 'react-router-dom'
 import { DotIcon, LogOutIcon, UserIcon, Shield, PenTool } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
+import { useApi } from '../../hooks/useApi'
 
 
 
 const AppSidebar = ({ items }) => {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const { get } = useApi()
+  
+  const [categories, setCategories] = useState([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
+
+  // Fetch categories on component mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setCategoriesLoading(true)
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/users/categories`)
+        
+        if (response.ok) {
+          const data = await response.json()
+          setCategories(data.data.categories || [])
+        } else {
+          console.error('Failed to fetch categories')
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error)
+      } finally {
+        setCategoriesLoading(false)
+      }
+    }
+
+    fetchCategories()
+  }, [])
 
   const handleLogout = async () => {
     try {
@@ -62,8 +90,7 @@ const AppSidebar = ({ items }) => {
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
-        </SidebarGroup>
-        <SidebarGroup>
+        </SidebarGroup>        <SidebarGroup>
           <SidebarGroupLabel>Categories</SidebarGroupLabel>
           <SidebarGroupContent className={'bg-white'}>
             <SidebarMenu>
@@ -71,10 +98,35 @@ const AppSidebar = ({ items }) => {
                 <SidebarMenuButton asChild>
                   <Link to="/categories">
                     <DotIcon />
-                    <span>Category</span>
+                    <span>All Categories</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              
+              {categoriesLoading ? (
+                <SidebarMenuItem>
+                  <div className="flex items-center gap-2 p-2 text-sm text-gray-500">
+                    <DotIcon className="animate-pulse" />
+                    <span>Loading categories...</span>
+                  </div>
+                </SidebarMenuItem>
+              ) : (
+                categories.map((category) => (
+                  <SidebarMenuItem key={category._id}>
+                    <SidebarMenuButton asChild>
+                      <Link to={`/category/${category.slug}`}>
+                        <DotIcon />
+                        <span>{category.name}</span>
+                        {category.articleCount > 0 && (
+                          <span className="ml-auto text-xs text-gray-500">
+                            {category.articleCount}
+                          </span>
+                        )}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

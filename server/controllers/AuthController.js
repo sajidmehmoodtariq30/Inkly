@@ -1,6 +1,7 @@
 import asyncHandler from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/UserModel.js";
+import { Category } from "../models/CategoryModel.js";
 import { uploadOnCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
@@ -439,8 +440,30 @@ const updateUser = asyncHandler(async (req, res) => {
                 200,
                 updatedUser,
                 "User profile updated successfully"
-            )
+            )        );
+});
+
+// @desc    Get all public categories (visible categories only)
+// @route   GET /api/v1/users/categories
+// @access  Public
+const getPublicCategories = asyncHandler(async (req, res) => {
+    try {
+        const categories = await Category.find({ 
+            isVisible: true 
+        })
+        .select('name slug description color icon articleCount')
+        .sort({ name: 1 });
+
+        return res.status(200).json(
+            new ApiResponse(200, {
+                categories
+            }, "Public categories retrieved successfully")
         );
+        
+    } catch (error) {
+        console.error("Error in getPublicCategories:", error);
+        throw new ApiError(500, "Error retrieving categories");
+    }
 });
 
 export {
@@ -451,4 +474,5 @@ export {
     refreshAccessToken,
     getCurrentUser,
     updateUser,
+    getPublicCategories,
 };

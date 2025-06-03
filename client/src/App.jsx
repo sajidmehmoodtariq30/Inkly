@@ -14,6 +14,10 @@ import Home from './pages/Home'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Profile from './pages/Profile'
+import AllBlogs from './pages/AllBlogs'
+import Categories from './pages/Categories'
+import CategoryDetail from './pages/CategoryDetail'
+import Comments from './pages/Comments'
 import AdminDashboard from './pages/AdminDashboard'
 import WriterDashboard from './pages/WriterDashboard'
 import WriterMain from './pages/WriterMain'
@@ -45,9 +49,12 @@ const App = () => {
               <Register />
             </PublicRoute>
           }
-          />
-          <Route path="/" element={<AppLayout />}>
+          />          <Route path="/" element={<AppLayout />}>
             <Route index element={<Home />} />
+            <Route path="blogs" element={<AllBlogs />} />
+            <Route path="categories" element={<Categories />} />
+            <Route path="category/:slug" element={<CategoryDetail />} />
+            <Route path="comments" element={<Comments />} />
           </Route>
           <Route path="profile" element={
             <ProtectedRoute>

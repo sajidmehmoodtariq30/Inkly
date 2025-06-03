@@ -14,17 +14,17 @@ const items = [
   },
   {
     title: "Categories",
-    url: "#",
+    url: "/categories",
     icon: Calendar,
   },
   {
-    title: "Blogs",
-    url: "#",
+    title: "All Blogs",
+    url: "/blogs",
     icon: Search,
   },
   {
     title: "Comments",
-    url: "#",
+    url: "/comments",
     icon: Inbox,
   },
 ]
