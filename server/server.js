@@ -19,6 +19,7 @@ app.use(cors({
         
         const allowedOrigins = [
             'http://localhost:5173',
+            'https://inklyserver.vercel.app',
             'http://localhost:3000',
             'https://inkly-mu.vercel.app',
             process.env.CORS_ORIGIN
