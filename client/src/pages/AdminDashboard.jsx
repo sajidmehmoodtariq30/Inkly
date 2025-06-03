@@ -240,15 +240,18 @@ const AnalyticsPage = () => {
   const [period, setPeriod] = useState('30')
   const [loading, setLoading] = useState(true)
   const [analyticsData, setAnalyticsData] = useState(null)
-  const [error, setError] = useState(null)
-
-  // Fetch analytics data
+  const [error, setError] = useState(null)  // Fetch analytics data
   const fetchAnalyticsData = async () => {
     try {
       setLoading(true)
       setError(null)
       
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('accessToken')
+      console.log('Token found:', token ? 'Yes' : 'No')
+      
+      if (!token) {
+        throw new Error('No authentication token found. Please log in again.')
+      }
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}admin/analytics?period=${period}`, {
         headers: {
           'Authorization': `Bearer ${token}`,

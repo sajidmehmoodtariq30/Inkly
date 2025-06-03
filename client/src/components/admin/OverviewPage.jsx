@@ -28,14 +28,20 @@ const OverviewPage = () => {  const [stats, setStats] = useState({
   useEffect(() => {
     fetchOverviewData()
   }, [])
-  
-  const fetchOverviewData = async () => {
+    const fetchOverviewData = async () => {
     try {
       setLoading(true)
+      
+      const token = localStorage.getItem('accessToken')
+      
+      if (!token) {
+        throw new Error('No authentication token found. Please log in again.')
+      }
+      
       const response = await fetch('/api/v1/admin/overview', {
         method: 'GET',
-        credentials: 'include',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       })

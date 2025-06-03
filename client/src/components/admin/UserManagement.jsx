@@ -43,8 +43,7 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true)
-      
-      const queryParams = new URLSearchParams({
+        const queryParams = new URLSearchParams({
         page: currentPage,
         limit: itemsPerPage,
         ...(searchTerm && { search: searchTerm }),
@@ -52,10 +51,16 @@ const UserManagement = () => {
         ...(selectedStatus !== 'all' && { status: selectedStatus })
       })
 
+      const token = localStorage.getItem('accessToken')
+      
+      if (!token) {
+        throw new Error('No authentication token found. Please log in again.')
+      }
+
       const response = await fetch(`/api/v1/admin/users?${queryParams}`, {
         method: 'GET',
-        credentials: 'include',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       })

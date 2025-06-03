@@ -28,20 +28,27 @@ const CategoryManagement = () => {
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingCategory, setEditingCategory] = useState(null)
   const [expandedCategories, setExpandedCategories] = useState(new Set())
-
   useEffect(() => {
     fetchCategories()
     fetchHierarchy()
     fetchParentCategories()
-  }, [])
+  }, []);
+
   const fetchCategories = async () => {
     try {
       setLoading(true)
       setError(null)
+      
+      const token = localStorage.getItem('accessToken')
+      
+      if (!token) {
+        throw new Error('No authentication token found. Please log in again.')
+      }
+      
       const response = await fetch('/api/v1/admin/categories', {
         method: 'GET',
-        credentials: 'include',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       })
@@ -63,13 +70,18 @@ const CategoryManagement = () => {
       setLoading(false)
     }
   }
-
   const fetchHierarchy = async () => {
     try {
+      const token = localStorage.getItem('accessToken')
+      
+      if (!token) {
+        throw new Error('No authentication token found. Please log in again.')
+      }
+      
       const response = await fetch('/api/v1/admin/categories/hierarchy', {
         method: 'GET',
-        credentials: 'include',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       })
@@ -85,13 +97,18 @@ const CategoryManagement = () => {
       setHierarchy([])
     }
   }
-
   const fetchParentCategories = async () => {
     try {
+      const token = localStorage.getItem('accessToken')
+      
+      if (!token) {
+        throw new Error('No authentication token found. Please log in again.')
+      }
+      
       const response = await fetch('/api/v1/admin/categories?limit=100', {
         method: 'GET',
-        credentials: 'include',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       })
@@ -135,15 +152,20 @@ const CategoryManagement = () => {
     setEditingCategory(category)
     setShowEditModal(true)
   }
-
   const handleDeleteCategory = async (categoryId) => {
     if (!confirm('Are you sure you want to delete this category?')) return
 
     try {
+      const token = localStorage.getItem('accessToken')
+      
+      if (!token) {
+        throw new Error('No authentication token found. Please log in again.')
+      }
+      
       const response = await fetch(`/api/v1/admin/categories/${categoryId}`, {
         method: 'DELETE',
-        credentials: 'include',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       })
@@ -158,13 +180,18 @@ const CategoryManagement = () => {
       console.error('Error deleting category:', err)
     }
   }
-
   const handleToggleVisibility = async (categoryId, isVisible) => {
     try {
+      const token = localStorage.getItem('accessToken')
+      
+      if (!token) {
+        throw new Error('No authentication token found. Please log in again.')
+      }
+      
       const response = await fetch(`/api/v1/admin/categories/${categoryId}/visibility`, {
         method: 'PUT',
-        credentials: 'include',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ isVisible: !isVisible })
@@ -180,13 +207,18 @@ const CategoryManagement = () => {
       console.error('Error updating category visibility:', err)
     }
   }
-
   const handleAddCategory = async (categoryData) => {
     try {
+      const token = localStorage.getItem('accessToken')
+      
+      if (!token) {
+        throw new Error('No authentication token found. Please log in again.')
+      }
+      
       const response = await fetch('/api/v1/admin/categories', {
         method: 'POST',
-        credentials: 'include',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(categoryData)
@@ -202,13 +234,18 @@ const CategoryManagement = () => {
       console.error('Error creating category:', err)
     }
   }
-
   const handleEditCategorySubmit = async (categoryData) => {
     try {
+      const token = localStorage.getItem('accessToken')
+      
+      if (!token) {
+        throw new Error('No authentication token found. Please log in again.')
+      }
+      
       const response = await fetch(`/api/v1/admin/categories/${editingCategory._id}`, {
         method: 'PUT',
-        credentials: 'include',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(categoryData)

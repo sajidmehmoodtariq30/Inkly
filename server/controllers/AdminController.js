@@ -3,6 +3,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { User } from "../models/UserModel.js";
 import { Category } from "../models/CategoryModel.js";
+import { Article } from "../models/ArticleModel.js";
 
 // @desc    Get admin overview statistics
 // @route   GET /api/admin/overview
@@ -31,30 +32,59 @@ const getOverviewStats = asyncHandler(async (req, res) => {
             .sort({ createdAt: -1 })
             .limit(5)
             .select('fullName username email avatar role createdAt');
-        
-        // Calculate growth rate
+          // Calculate growth rate
         const totalUsersLastMonth = totalUsers - newUsersThisMonth;
         const growthRate = totalUsersLastMonth > 0 
             ? ((newUsersThisMonth / totalUsersLastMonth) * 100).toFixed(1)
-            : 0;        // Get total categories count
+            : 0;
+        
+        // Get total categories count
         const totalCategories = await Category.countDocuments({ isVisible: true });
+        
+        // Get real article data
+        const totalPosts = await Article.countDocuments({ status: 'published' });
+        const newPostsThisMonth = await Article.countDocuments({
+            status: 'published',
+            publishedAt: { $gte: thirtyDaysAgo }
+        });
+
+        // Get total comments from all articles
+        const commentsAggregation = await Article.aggregate([
+            { $match: { status: 'published' } },
+            {
+                $group: {
+                    _id: null,
+                    totalComments: { $sum: { $size: '$comments' } },
+                    totalViews: { $sum: '$views' }
+                }
+            }
+        ]);
+
+        const articleStats = commentsAggregation[0] || { totalComments: 0, totalViews: 0 };
+        
+        // Calculate average posts per day
+        const avgPostsPerDay = totalPosts > 0 ? (totalPosts / 30).toFixed(1) : 0;
+
         const stats = {
             totalUsers,
-            totalPosts: 0, // TODO: Implement when Post model is ready
+            totalPosts,
             totalCategories,
-            totalComments: 0, // TODO: Implement when Comment model is ready
+            totalComments: articleStats.totalComments,
             activeUsers,
-            totalViews: 0, // TODO: Implement when analytics are added
+            totalViews: articleStats.totalViews,
             newUsersThisMonth,
-            newPostsThisMonth: 0, // TODO: Implement when Post model is ready
-            newCommentsThisMonth: 0, // TODO: Implement when Comment model is ready
+            newPostsThisMonth,
+            newCommentsThisMonth: 0, // Would need comment timestamps to calculate this
             growthRate,
-            avgPostsPerDay: 0, // TODO: Implement when Post model is ready
+            avgPostsPerDay,
             recentUsers,
             recentActivity: [
-                // TODO: Implement activity tracking
                 {
                     description: `${newUsersThisMonth} new users joined this month`,
+                    createdAt: currentDate
+                },
+                {
+                    description: `${newPostsThisMonth} articles published this month`,
                     createdAt: currentDate
                 }
             ]
@@ -634,43 +664,153 @@ const getAnalytics = asyncHandler(async (req, res) => {
         const activeUsers = await User.countDocuments({
             lastLogin: { $gte: startDate }
         });
-        
-        // Mock analytics data until full implementation
+
+        // Get real article analytics
+        const totalArticles = await Article.countDocuments({ status: 'published' });
+        const articlesInPeriod = await Article.countDocuments({
+            status: 'published',
+            publishedAt: { $gte: startDate }
+        });
+
+        // Get total views and likes from all published articles
+        const articleStats = await Article.aggregate([
+            { $match: { status: 'published' } },
+            {
+                $group: {
+                    _id: null,
+                    totalViews: { $sum: '$views' },
+                    totalLikes: { $sum: { $size: '$likes' } },
+                    totalComments: { $sum: { $size: '$comments' } }
+                }
+            }
+        ]);
+
+        const stats = articleStats[0] || { totalViews: 0, totalLikes: 0, totalComments: 0 };        // Get recent activity data for articles
+        const recentActivityData = await Article.aggregate([
+            {
+                $match: {
+                    status: 'published',
+                    publishedAt: { $gte: new Date(currentDate.getTime() - (7 * 24 * 60 * 60 * 1000)) }
+                }
+            },
+            {
+                $group: {
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$publishedAt" } },
+                    articles: { $sum: 1 },
+                    views: { $sum: '$views' },
+                    comments: { $sum: { $size: '$comments' } }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
+        // Get daily user registrations for the last 7 days
+        const userActivityData = await User.aggregate([
+            {
+                $match: {
+                    createdAt: { $gte: new Date(currentDate.getTime() - (7 * 24 * 60 * 60 * 1000)) }
+                }
+            },
+            {
+                $group: {
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+                    newUsers: { $sum: 1 }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
+        // Get top categories by article count
+        const topCategories = await Article.aggregate([
+            { $match: { status: 'published' } },
+            {
+                $group: {
+                    _id: '$category',
+                    articles: { $sum: 1 },
+                    views: { $sum: '$views' }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'categories',
+                    localField: '_id',
+                    foreignField: '_id',
+                    as: 'categoryInfo'
+                }
+            },
+            { $unwind: '$categoryInfo' },
+            {
+                $project: {
+                    name: '$categoryInfo.name',
+                    articles: 1,
+                    views: 1
+                }
+            },
+            { $sort: { articles: -1 } },
+            { $limit: 5 }
+        ]);
+
+        // Get top writers by article count and engagement
+        const topWriters = await Article.aggregate([
+            { $match: { status: 'published' } },
+            {
+                $group: {
+                    _id: '$author',
+                    articles: { $sum: 1 },
+                    views: { $sum: '$views' },
+                    likes: { $sum: { $size: '$likes' } }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: '_id',
+                    foreignField: '_id',
+                    as: 'authorInfo'
+                }
+            },
+            { $unwind: '$authorInfo' },
+            {
+                $project: {
+                    name: '$authorInfo.fullName',
+                    articles: 1,
+                    views: 1,
+                    likes: 1
+                }
+            },
+            { $sort: { articles: -1, views: -1 } },
+            { $limit: 5 }
+        ]);        // Format recent activity for the last 7 days
+        const recentActivity = Array.from({ length: 7 }, (_, i) => {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            const dateString = date.toISOString().split('T')[0];
+            
+            const dayData = recentActivityData.find(item => item._id === dateString);
+            const userData = userActivityData.find(item => item._id === dateString);
+            
+            return {
+                date: dateString,
+                users: userData ? userData.newUsers : 0,
+                articles: dayData ? dayData.articles : 0,
+                comments: dayData ? dayData.comments : 0
+            };
+        }).reverse();
+
         const analyticsData = {
             overview: {
                 totalUsers,
                 totalWriters,
-                totalArticles: Math.floor(Math.random() * 600) + 400,
-                totalComments: Math.floor(Math.random() * 2000) + 1500,
-                totalViews: Math.floor(Math.random() * 50000) + 40000,
-                totalLikes: Math.floor(Math.random() * 4000) + 3000,
+                totalArticles,
+                totalComments: stats.totalComments,
+                totalViews: stats.totalViews,
+                totalLikes: stats.totalLikes,
                 activeUsers,
                 newUsersThisMonth: newUsersInPeriod
             },
-            recentActivity: Array.from({ length: 7 }, (_, i) => {
-                const date = new Date();
-                date.setDate(date.getDate() - i);
-                return {
-                    date: date.toISOString().split('T')[0],
-                    users: Math.floor(Math.random() * 50) + 30,
-                    articles: Math.floor(Math.random() * 15) + 5,
-                    comments: Math.floor(Math.random() * 40) + 10
-                };
-            }).reverse(),
-            topCategories: [
-                { name: 'Technology', articles: 89, views: 12450 },
-                { name: 'Lifestyle', articles: 67, views: 9832 },
-                { name: 'Business', articles: 54, views: 8765 },
-                { name: 'Health', articles: 43, views: 6543 },
-                { name: 'Travel', articles: 32, views: 4321 }
-            ],
-            topWriters: [
-                { name: 'John Doe', articles: 23, views: 5643, likes: 234 },
-                { name: 'Jane Smith', articles: 19, views: 4521, likes: 198 },
-                { name: 'Mike Johnson', articles: 17, views: 3987, likes: 167 },
-                { name: 'Sarah Wilson', articles: 15, views: 3456, likes: 145 },
-                { name: 'Alex Brown', articles: 12, views: 2987, likes: 123 }
-            ],
+            recentActivity,
+            topCategories,
+            topWriters,
             period: days
         };
 
