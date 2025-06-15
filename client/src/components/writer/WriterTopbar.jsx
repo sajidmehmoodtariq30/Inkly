@@ -1,6 +1,6 @@
 import React from 'react'
 import { useSelector } from 'react-redux'
-import { Bell, LogOut, User } from 'lucide-react'
+import { Bell, LogOut, User, Home } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { useAuth } from '../../hooks/useAuth'
+import { useNavigate } from 'react-router-dom'
 
 const WriterTopbar = () => {
   const { user } = useSelector(state => state.auth)
@@ -27,11 +28,10 @@ const WriterTopbar = () => {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between px-4">
-        <div className="flex items-center gap-4">
+      <div className="container flex h-16 items-center justify-between px-4">        <div className="flex items-center gap-4">
           <SidebarTrigger className="h-8 w-8" />
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center">
+          <div className="hidden md:flex items-center gap-2">
+            <div className="h-8 w-8 rounded-full bg-gray-700 flex items-center justify-center">
               <span className="text-white font-bold text-sm">W</span>
             </div>
             <span className="font-semibold text-lg">Writer Panel</span>
@@ -70,11 +70,15 @@ const WriterTopbar = () => {
                   <p className="text-sm font-medium leading-none">{user?.name}</p>
                   <p className="text-xs leading-none text-muted-foreground">
                     {user?.email}
-                  </p>
-                  <p className="text-xs text-blue-600 font-medium">Writer</p>
+                  </p>                  <p className="text-xs text-gray-600 font-medium">Writer</p>
                 </div>
               </DropdownMenuLabel>
-              <DropdownMenuSeparator />              <DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => window.location.href = '/'}>
+                <Home className="mr-2 h-4 w-4" />
+                <span>Back to Site</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem>
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </DropdownMenuItem>

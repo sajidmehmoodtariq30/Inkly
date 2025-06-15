@@ -37,11 +37,11 @@ const Topbar = () => {
         left: !isMobile && isExpanded ? sidebarWidth : '0',
         width: !isMobile && isExpanded ? `calc(100% - ${sidebarWidth})` : '100%'
       }}
-    >
-      <div className='flex items-center gap-2'>
+    >      <div className='flex items-center gap-2'>
         <SidebarTrigger />
-        <img src={logo} alt="logo" className='w-24' />
-      </div>      <div>
+        <img src={logo} alt="logo" className='w-24 hidden md:block' />
+      </div>
+      <div className='hidden md:block'>
         <Searchbox onSearch={handleSearch} placeholder="Search articles..." />
       </div><div>
         {loading ? (

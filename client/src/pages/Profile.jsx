@@ -8,7 +8,7 @@ import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Textarea } from '../components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
-import { UserIcon, Search, LogOut, Edit, Save, X, Upload, Camera, ImageIcon, Globe, MapPin, Briefcase, Calendar, Eye, EyeOff, Twitter, Linkedin, Github, ExternalLink } from 'lucide-react'
+import { UserIcon, Search, LogOut, Edit, Save, X, Upload, Camera, ImageIcon, Globe, MapPin, Briefcase, Calendar, Eye, EyeOff, Twitter, Linkedin, Github, ExternalLink, Lock, Key } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { showTost } from '../utils/toast'
 import logo from '../assets/logo.png' // Adjust the path as necessary
@@ -17,10 +17,20 @@ const Profile = () => {
   const { user, logout } = useAuth()
   const dispatch = useAppDispatch()
   const [isEditing, setIsEditing] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)  
+  const [isLoading, setIsLoading] = useState(false)
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  })
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false
+  })
   const [formData, setFormData] = useState({
     fullName: user?.fullName || '',
-    username: user?.username || '',
     bio: user?.bio || '',
     location: user?.location || '',
     profession: user?.profession || '',
@@ -39,7 +49,7 @@ const Profile = () => {
 
   const handleLogout = () => {
     logout()
-  }  
+  }
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target
     setFormData(prev => ({
@@ -63,7 +73,7 @@ const Profile = () => {
         showTost('Please select an image file', 'error')
         return
       }
-      
+
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         showTost('File size must be less than 5MB', 'error')
@@ -95,14 +105,12 @@ const Profile = () => {
         showTost('Please select an image file', 'error')
         return
       }
-      
+
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         showTost('File size must be less than 5MB', 'error')
         return
-      }
-
-      setAvatarFile(file)
+      } setAvatarFile(file)
       const reader = new FileReader()
       reader.onload = (e) => setPreviewUrl(e.target.result)
       reader.readAsDataURL(file)
@@ -112,7 +120,6 @@ const Profile = () => {
     setIsEditing(true)
     setFormData({
       fullName: user?.fullName || '',
-      username: user?.username || '',
       bio: user?.bio || '',
       location: user?.location || '',
       profession: user?.profession || '',
@@ -133,7 +140,6 @@ const Profile = () => {
     setPreviewUrl(null)
     setFormData({
       fullName: user?.fullName || '',
-      username: user?.username || '',
       bio: user?.bio || '',
       location: user?.location || '',
       profession: user?.profession || '',
@@ -151,9 +157,8 @@ const Profile = () => {
   const handleSave = async () => {
     try {
       setIsLoading(true)
-        const formDataToSend = new FormData()
+      const formDataToSend = new FormData()
       formDataToSend.append('fullName', formData.fullName)
-      formDataToSend.append('username', formData.username)
       formDataToSend.append('bio', formData.bio)
       formDataToSend.append('location', formData.location)
       formDataToSend.append('profession', formData.profession)
@@ -161,13 +166,13 @@ const Profile = () => {
       formDataToSend.append('emailNotifications', formData.emailNotifications)
       formDataToSend.append('pushNotifications', formData.pushNotifications)
       formDataToSend.append('newsletter', formData.newsletter)
-      
+
       // Social links
       formDataToSend.append('twitterUrl', formData.twitterUrl)
       formDataToSend.append('linkedinUrl', formData.linkedinUrl)
       formDataToSend.append('githubUrl', formData.githubUrl)
       formDataToSend.append('websiteUrl', formData.websiteUrl)
-      
+
       if (avatarFile) {
         formDataToSend.append('avatar', avatarFile)
         showTost('Uploading image...', 'info')
@@ -189,10 +194,10 @@ const Profile = () => {
       setIsEditing(false)
       setAvatarFile(null)
       setPreviewUrl(null)
-      
+
       // Update user data in Redux store
       dispatch(updateUserProfile(data.data))
-      
+
     } catch (error) {
       console.error('Profile update error:', error)
       showTost(error.message || 'Failed to update profile', 'error')
@@ -201,14 +206,113 @@ const Profile = () => {
     }
   }
 
+  // Password change handlers
+  const handlePasswordInputChange = (e) => {
+    const { name, value } = e.target
+    setPasswordForm(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+
+  const togglePasswordVisibility = (field) => {
+    setShowPasswords(prev => ({
+      ...prev,
+      [field]: !prev[field]
+    }))
+  }
+  const handlePasswordChange = async () => {
+    try {
+      // Validation
+      if (!passwordForm.newPassword || !passwordForm.confirmPassword) {
+        showTost('Please fill in all password fields', 'error')
+        return
+      }
+
+      if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+        showTost('New passwords do not match', 'error')
+        return
+      }
+
+      if (passwordForm.newPassword.length < 6) {
+        showTost('Password must be at least 6 characters long', 'error')
+        return
+      }
+
+      // For Google users, if current password is empty, use the default
+      let currentPassword = passwordForm.currentPassword
+      if (user?.isGoogleUser && !currentPassword) {
+        currentPassword = '12345678'
+      }
+
+      if (!currentPassword) {
+        showTost('Please enter your current password', 'error')
+        return
+      }
+
+      setIsLoading(true)
+
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}users/change-password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          currentPassword,
+          newPassword: passwordForm.newPassword,
+          isGoogleUser: user?.isGoogleUser
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to change password')
+      }
+
+      showTost('Password changed successfully!', 'success')
+      setIsChangingPassword(false)
+      setPasswordForm({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      })
+      setShowPasswords({
+        current: false,
+        new: false,
+        confirm: false
+      })
+
+    } catch (error) {
+      console.error('Password change error:', error)
+      showTost(error.message || 'Failed to change password', 'error')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleCancelPasswordChange = () => {
+    setIsChangingPassword(false)
+    setPasswordForm({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    })
+    setShowPasswords({
+      current: false,
+      new: false,
+      confirm: false
+    })
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Topbar */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo */}
-            <div className="flex-shrink-0">
+          <div className="flex justify-between items-center h-16">            {/* Logo */}
+            <div className="flex-shrink-0 hidden md:block">
               <Link to="/">
                 <img
                   className="h-24 w-auto"
@@ -217,9 +321,9 @@ const Profile = () => {
                 />
               </Link>
             </div>
-            
+
             {/* Search Bar */}
-            <div className="flex-1 max-w-lg mx-8">
+            <div className="flex-1 max-w-lg mx-8 hidden md:block">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <Input
@@ -229,7 +333,12 @@ const Profile = () => {
                 />
               </div>
             </div>
-            
+
+            {/* Mobile Title */}
+            <div className="md:hidden">
+              <h1 className="text-lg font-semibold">Profile</h1>
+            </div>
+
             {/* Logout Button */}
             <Button
               onClick={handleLogout}
@@ -237,7 +346,7 @@ const Profile = () => {
               className="flex items-center gap-2"
             >
               <LogOut className="w-4 h-4" />
-              Logout
+              <span className="hidden sm:inline">Logout</span>
             </Button>
           </div>
         </div>
@@ -255,16 +364,16 @@ const Profile = () => {
               </Button>
             ) : (
               <div className="flex gap-2">
-                <Button 
-                  onClick={handleSave} 
+                <Button
+                  onClick={handleSave}
                   disabled={isLoading}
                   className="flex items-center gap-2"
                 >
                   <Save className="w-4 h-4" />
                   {isLoading ? 'Saving...' : 'Save'}
                 </Button>
-                <Button 
-                  onClick={handleCancel} 
+                <Button
+                  onClick={handleCancel}
                   variant="outline"
                   className="flex items-center gap-2"
                 >
@@ -274,7 +383,7 @@ const Profile = () => {
               </div>
             )}
           </div>
-          
+
           <Card>
             <CardHeader>
               <CardTitle>User Information</CardTitle>
@@ -285,13 +394,12 @@ const Profile = () => {
               <div className="flex items-center gap-6 mb-6">
                 <div className="relative">
                   {isEditing ? (
-                    <div 
-                      {...getRootProps()} 
-                      className={`w-24 h-24 rounded-full border-2 border-dashed cursor-pointer transition-all duration-200 ${
-                        isDragActive 
-                          ? 'border-blue-500 bg-blue-50' 
+                    <div
+                      {...getRootProps()}
+                      className={`w-24 h-24 rounded-full border-2 border-dashed cursor-pointer transition-all duration-200 ${isDragActive
+                          ? 'border-blue-500 bg-blue-50'
                           : 'border-gray-300 hover:border-gray-400'
-                      } flex items-center justify-center relative overflow-hidden`}
+                        } flex items-center justify-center relative overflow-hidden`}
                     >
                       <input {...getInputProps()} />
                       {(previewUrl || user?.avatar) ? (
@@ -339,7 +447,7 @@ const Profile = () => {
                       )}
                     </div>
                   )}
-                    {isEditing && (
+                  {isEditing && (
                     <div className="mt-2">
                       <p className="text-xs text-gray-500 text-center">
                         Drag & drop or click to upload
@@ -370,23 +478,21 @@ const Profile = () => {
                       )}
                     </div>
                   )}
-                </div>
-                <div>
+                </div>                <div>
                   <h2 className="text-xl font-semibold">{formData.fullName || user?.fullName || 'User'}</h2>
-                  <p className="text-gray-600">@{formData.username || user?.username}</p>
+                  <p className="text-gray-600">@{user?.username}</p>
                   <p className="text-gray-600">{user?.email}</p>
                   {user?.role && (
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mt-1 ${
-                      user?.role === 'admin' ? 'bg-red-100 text-red-800' :
-                      user?.role === 'writer' ? 'bg-blue-100 text-blue-800' :
-                      'bg-green-100 text-green-800'
-                    }`}>
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mt-1 ${user?.role === 'admin' ? 'bg-red-100 text-red-800' :
+                        user?.role === 'writer' ? 'bg-blue-100 text-blue-800' :
+                          'bg-green-100 text-green-800'
+                      }`}>
                       {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                     </span>
                   )}
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -407,16 +513,8 @@ const Profile = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Username
                   </label>
-                  {isEditing ? (
-                    <Input
-                      name="username"
-                      value={formData.username}
-                      onChange={handleInputChange}
-                      placeholder="Enter your username"
-                    />
-                  ) : (
-                    <p className="text-gray-900">@{user?.username || 'Not provided'}</p>
-                  )}
+                  <p className="text-gray-900">@{user?.username || 'Not provided'}</p>
+                  {isEditing && <p className="text-xs text-gray-500 mt-1">Username cannot be changed</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -429,11 +527,10 @@ const Profile = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Role
                   </label>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    user?.role === 'admin' ? 'bg-red-100 text-red-800' :
-                    user?.role === 'writer' ? 'bg-blue-100 text-blue-800' :
-                    'bg-green-100 text-green-800'
-                  }`}>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user?.role === 'admin' ? 'bg-red-100 text-red-800' :
+                      user?.role === 'writer' ? 'bg-blue-100 text-blue-800' :
+                        'bg-green-100 text-green-800'
+                    }`}>
                     {user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1) || 'User'}
                   </span>
                   {isEditing && <p className="text-xs text-gray-500 mt-1">Role cannot be changed</p>}
@@ -505,11 +602,10 @@ const Profile = () => {
                       </SelectContent>
                     </Select>
                   ) : (
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      user?.preferences?.profileVisibility === 'public' ? 'bg-green-100 text-green-800' :
-                      user?.preferences?.profileVisibility === 'private' ? 'bg-red-100 text-red-800' :
-                      'bg-yellow-100 text-yellow-800'
-                    }`}>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user?.preferences?.profileVisibility === 'public' ? 'bg-green-100 text-green-800' :
+                        user?.preferences?.profileVisibility === 'private' ? 'bg-red-100 text-red-800' :
+                          'bg-yellow-100 text-yellow-800'
+                      }`}>
                       {user?.preferences?.profileVisibility?.charAt(0).toUpperCase() + user?.preferences?.profileVisibility?.slice(1) || 'Public'}
                     </span>
                   )}
@@ -557,9 +653,9 @@ const Profile = () => {
                     />
                   ) : (
                     user?.socialLinks?.twitter ? (
-                      <a 
-                        href={user.socialLinks.twitter} 
-                        target="_blank" 
+                      <a
+                        href={user.socialLinks.twitter}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
                       >
@@ -585,9 +681,9 @@ const Profile = () => {
                     />
                   ) : (
                     user?.socialLinks?.linkedin ? (
-                      <a 
-                        href={user.socialLinks.linkedin} 
-                        target="_blank" 
+                      <a
+                        href={user.socialLinks.linkedin}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
                       >
@@ -613,9 +709,9 @@ const Profile = () => {
                     />
                   ) : (
                     user?.socialLinks?.github ? (
-                      <a 
-                        href={user.socialLinks.github} 
-                        target="_blank" 
+                      <a
+                        href={user.socialLinks.github}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
                       >
@@ -641,9 +737,9 @@ const Profile = () => {
                     />
                   ) : (
                     user?.socialLinks?.website ? (
-                      <a 
-                        href={user.socialLinks.website} 
-                        target="_blank" 
+                      <a
+                        href={user.socialLinks.website}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
                       >
@@ -683,9 +779,8 @@ const Profile = () => {
                       className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                     />
                   ) : (
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      user?.preferences?.emailNotifications ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user?.preferences?.emailNotifications ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      }`}>
                       {user?.preferences?.emailNotifications ? 'Enabled' : 'Disabled'}
                     </span>
                   )}
@@ -704,9 +799,8 @@ const Profile = () => {
                       className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                     />
                   ) : (
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      user?.preferences?.pushNotifications ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user?.preferences?.pushNotifications ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      }`}>
                       {user?.preferences?.pushNotifications ? 'Enabled' : 'Disabled'}
                     </span>
                   )}
@@ -725,14 +819,196 @@ const Profile = () => {
                       className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                     />
                   ) : (
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      user?.preferences?.newsletter ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user?.preferences?.newsletter ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      }`}>
                       {user?.preferences?.newsletter ? 'Subscribed' : 'Not Subscribed'}
                     </span>
                   )}
                 </div>
               </div>
+            </CardContent>          </Card>
+
+          {/* Password Change Section */}
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Lock className="w-5 h-5" />
+                Password & Security
+              </CardTitle>
+              <CardDescription>
+                {isChangingPassword ? 'Change your account password' : 'Manage your account security'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!isChangingPassword ? (
+                <div className="flex items-center justify-between">                  <div>
+                  <p className="text-sm font-medium text-gray-700">Password</p>
+                  <p className="text-xs text-gray-500">
+                    {user?.isGoogleUser
+                      ? 'Google account - current password is set to default'
+                      : 'Last changed: Not available'
+                    }
+                  </p>
+                </div>                  <Button
+                  onClick={() => {
+                    setIsChangingPassword(true)
+                    // Pre-fill current password for Google users
+                    if (user?.isGoogleUser) {
+                      setPasswordForm(prev => ({
+                        ...prev,
+                        currentPassword: '12345678'
+                      }))
+                    }
+                  }}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  disabled={isEditing}
+                >
+                    <Key className="w-4 h-4" />
+                    Change Password
+                  </Button>
+                </div>) : (
+                <div className="space-y-4">
+                  {/* Current Password - Always show, pre-fill for Google users */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Current Password
+                    </label>
+                    <div className="relative">
+                      <Input
+                        type={showPasswords.current ? 'text' : 'password'}
+                        name="currentPassword"
+                        value={passwordForm.currentPassword}
+                        onChange={handlePasswordInputChange}
+                        placeholder={user?.isGoogleUser ? "12345678 (default)" : "Enter your current password"}
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => togglePasswordVisibility('current')}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                      >
+                        {showPasswords.current ? (
+                          <EyeOff className="h-4 w-4 text-gray-400" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-gray-400" />
+                        )}
+                      </button>
+                    </div>
+                    {user?.isGoogleUser && (
+                      <p className="text-xs text-blue-600 mt-1">
+                        For Google accounts, the default password is "12345678"
+                      </p>
+                    )}
+                  </div>
+
+                  {/* New Password */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      New Password
+                    </label>
+                    <div className="relative">
+                      <Input
+                        type={showPasswords.new ? 'text' : 'password'}
+                        name="newPassword"
+                        value={passwordForm.newPassword}
+                        onChange={handlePasswordInputChange}
+                        placeholder="Enter your new password"
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => togglePasswordVisibility('new')}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                      >
+                        {showPasswords.new ? (
+                          <EyeOff className="h-4 w-4 text-gray-400" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-gray-400" />
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Password must be at least 6 characters long
+                    </p>
+                  </div>
+
+                  {/* Confirm Password */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Confirm New Password
+                    </label>
+                    <div className="relative">
+                      <Input
+                        type={showPasswords.confirm ? 'text' : 'password'}
+                        name="confirmPassword"
+                        value={passwordForm.confirmPassword}
+                        onChange={handlePasswordInputChange}
+                        placeholder="Confirm your new password"
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => togglePasswordVisibility('confirm')}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                      >
+                        {showPasswords.confirm ? (
+                          <EyeOff className="h-4 w-4 text-gray-400" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-gray-400" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Password strength indicator */}
+                  {passwordForm.newPassword && (
+                    <div className="space-y-2">
+                      <div className="text-xs text-gray-600">Password strength:</div>
+                      <div className="grid grid-cols-4 gap-1">
+                        {[1, 2, 3, 4].map((level) => (
+                          <div
+                            key={level}
+                            className={`h-1 rounded-full ${passwordForm.newPassword.length >= level * 2
+                                ? passwordForm.newPassword.length >= 8
+                                  ? 'bg-green-500'
+                                  : passwordForm.newPassword.length >= 6
+                                    ? 'bg-yellow-500'
+                                    : 'bg-red-500'
+                                : 'bg-gray-200'
+                              }`}
+                          />
+                        ))}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {passwordForm.newPassword.length < 6 && 'Too short'}
+                        {passwordForm.newPassword.length >= 6 && passwordForm.newPassword.length < 8 && 'Fair'}
+                        {passwordForm.newPassword.length >= 8 && 'Strong'}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 pt-4">
+                    <Button
+                      onClick={handlePasswordChange}
+                      disabled={isLoading}
+                      className="flex items-center gap-2"
+                    >
+                      <Save className="w-4 h-4" />
+                      {isLoading ? 'Changing...' : 'Change Password'}
+                    </Button>
+                    <Button
+                      onClick={handleCancelPasswordChange}
+                      variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      <X className="w-4 h-4" />
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 

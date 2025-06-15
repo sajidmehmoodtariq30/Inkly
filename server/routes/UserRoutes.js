@@ -7,6 +7,7 @@ import {
     refreshAccessToken,
     getCurrentUser,
     updateUser,
+    changePassword,
     getPublicCategories,
     getPublicArticles,
     getPublicArticle,
@@ -41,5 +42,6 @@ router.route("/profile").put(
     ]),
     updateUser
 );
+router.route("/change-password").put(verifyJWT, changePassword);
 
 export default router;

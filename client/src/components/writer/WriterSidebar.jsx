@@ -25,8 +25,10 @@ import {
   Eye,
   TrendingUp,
   Clock,
-  Heart
+  Heart,
+  Home
 } from "lucide-react"
+import logo from '../../assets/logo.png'
 
 const WriterSidebar = () => {
   const location = useLocation()
@@ -91,20 +93,36 @@ const WriterSidebar = () => {
 
 
   return (
-    <Sidebar className="border-r">
-      <SidebarHeader className="border-b px-6 py-4">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-blue-600 flex items-center justify-center">
-            <PenTool className="h-6 w-6 text-white" />
-          </div>
+    <Sidebar className="border-r">      <SidebarHeader className="border-b px-6 py-4">
+        <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+          <img src={logo} alt="Inkly" className="h-10 w-10 object-contain" />
           <div>
-            <h2 className="font-bold text-lg">Writer Panel</h2>
-            <p className="text-sm text-muted-foreground">Content Management</p>
+            <h2 className="font-bold text-lg">Inkly</h2>
+            <p className="text-sm text-muted-foreground">Writer Panel</p>
           </div>
-        </div>
-      </SidebarHeader>
+        </Link>
+      </SidebarHeader>      <SidebarContent className="px-4 py-4">
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton 
+                  asChild 
+                  className="w-full justify-start gap-3 px-3 py-2.5 text-left hover:bg-accent rounded-md transition-colors mb-2"
+                >
+                  <Link to="/">
+                    <Home className="h-5 w-5" />
+                    <div>
+                      <div className="font-medium">Back to Site</div>
+                      <div className="text-xs text-muted-foreground">Return to main site</div>
+                    </div>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
-      <SidebarContent className="px-4 py-4">
         <SidebarGroup>
           <SidebarGroupLabel>Content</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -130,11 +148,9 @@ const WriterSidebar = () => {
           </SidebarGroupContent>
         </SidebarGroup>
 
-      </SidebarContent>
-
-      <SidebarFooter className="border-t px-4 py-4">
+      </SidebarContent>      <SidebarFooter className="border-t px-4 py-4">
         <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-          <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center">
+          <div className="h-8 w-8 rounded-full bg-gray-700 flex items-center justify-center">
             {user?.avatar ? (
               <img
                 src={user.avatar}

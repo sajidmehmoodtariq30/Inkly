@@ -243,12 +243,17 @@ const userSchema = new Schema(
                 type: Number,
                 default: 0
             }
-        },
-        
-        password: {
+        },        password: {
             type: String,
             required: [true, "Password is required"],
         },
+        
+        // Identify Google users
+        isGoogleUser: {
+            type: Boolean,
+            default: false
+        },
+        
         refreshToken: {
             type: String,
         },

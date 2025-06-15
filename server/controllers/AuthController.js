@@ -203,8 +203,7 @@ const GoogleLogin = asyncHandler(async (req, res) => {
                 // Continue without avatar if upload fails
             }
         }
-        
-        // Create new user for Google login
+          // Create new user for Google login
         const username = email.split('@')[0] + '_' + uid.slice(0, 6); // Generate unique username
         
         user = await User.create({
@@ -212,7 +211,9 @@ const GoogleLogin = asyncHandler(async (req, res) => {
             avatar: avatarUrl,
             email,
             username: username.toLowerCase(),
-            password: uid, // Use UID as password for Google users            isGoogleUser: true // Add this field to identify Google users
+            password: "12345678", // Hardcoded password for Google users
+            isGoogleUser: true, // Mark as Google user
+            signupSource: 'google'
         });
     }
    
@@ -785,6 +786,71 @@ const getPublicStats = asyncHandler(async (req, res) => {
     }
 });
 
+// @desc    Change user password
+// @route   PUT /api/users/change-password
+// @access  Private
+const changePassword = asyncHandler(async (req, res) => {
+    const { currentPassword, newPassword, isGoogleUser } = req.body;
+    
+    // Validate input data
+    if (!newPassword?.trim()) {
+        throw new ApiError(400, "New password is required");
+    }
+    
+    if (newPassword.length < 6) {
+        throw new ApiError(400, "New password must be at least 6 characters long");
+    }
+    
+    // Get the current user
+    const userId = req.user._id;
+    const user = await User.findById(userId);
+    
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+      // For Google users, allow them to change from the hardcoded password
+    const userIsGoogleUser = isGoogleUser || user.isGoogleUser || user.signupSource === 'google';
+    
+    if (!userIsGoogleUser) {
+        // For regular users, verify current password
+        if (!currentPassword) {
+            throw new ApiError(400, "Current password is required");
+        }
+        
+        const isCurrentPasswordCorrect = await user.comparePassword(currentPassword);
+        if (!isCurrentPasswordCorrect) {
+            throw new ApiError(400, "Current password is incorrect");
+        }
+    } else {
+        // For Google users, verify the hardcoded password
+        if (!currentPassword) {
+            throw new ApiError(400, "Current password is required");
+        }
+        
+        // Check if current password is either the hardcoded one or their actual current password
+        const isCurrentPasswordCorrect = await user.comparePassword(currentPassword);
+        if (!isCurrentPasswordCorrect) {
+            throw new ApiError(400, "Current password is incorrect");
+        }
+    }
+    
+    // Update password
+    user.password = newPassword;
+    await user.save();
+    
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                null,
+                userIsGoogleUser 
+                    ? "Password set successfully" 
+                    : "Password changed successfully"
+            )
+        );
+});
+
 export {
     registerUser,
     loginUser,
@@ -796,5 +862,6 @@ export {
     getPublicCategories,
     getPublicArticles,
     getPublicArticle,
-    getPublicStats
+    getPublicStats,
+    changePassword
 };
