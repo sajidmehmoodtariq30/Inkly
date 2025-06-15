@@ -55,9 +55,7 @@ const UserManagement = () => {
       
       if (!token) {
         throw new Error('No authentication token found. Please log in again.')
-      }
-
-      const response = await fetch(`/api/v1/admin/users?${queryParams}`, {
+      }      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}admin/users?${queryParams}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -116,17 +114,23 @@ const UserManagement = () => {
     setEditingUser(user)
     setShowEditModal(true)
   }
-
   const handleBanUser = (user) => {
     setBanningUser(user)
     setShowBanModal(true)
   }
+  
   const handleUpdateUserRole = async (userId, newRole) => {
     try {
-      const response = await fetch(`/api/v1/admin/users/${userId}/role`, {
+      const token = localStorage.getItem('accessToken')
+      
+      if (!token) {
+        throw new Error('No authentication token found. Please log in again.')
+      }
+      
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}admin/users/${userId}/role`, {
         method: 'PUT',
-        credentials: 'include',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ role: newRole })
@@ -137,18 +141,24 @@ const UserManagement = () => {
       }
 
       // Refresh users list
-      fetchUsers()
-    } catch (err) {
+      fetchUsers()    } catch (err) {
       console.error('Error updating user role:', err)
       // Add toast notification here
     }
   }
+  
   const handleBanUserSubmit = async (banned, reason = '') => {
     try {
-      const response = await fetch(`/api/v1/admin/users/${banningUser._id}/ban`, {
+      const token = localStorage.getItem('accessToken')
+      
+      if (!token) {
+        throw new Error('No authentication token found. Please log in again.')
+      }
+      
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}admin/users/${banningUser._id}/ban`, {
         method: 'PUT',
-        credentials: 'include',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ banned, reason })
@@ -197,13 +207,18 @@ const UserManagement = () => {
   const handleAddNewUser = () => {
     setShowAddUserModal(true)
   }
-
   const handleAddUserSubmit = async (userData) => {
     try {
-      const response = await fetch('/api/v1/admin/users', {
+      const token = localStorage.getItem('accessToken')
+      
+      if (!token) {
+        throw new Error('No authentication token found. Please log in again.')
+      }
+      
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}admin/users`, {
         method: 'POST',
-        credentials: 'include',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(userData)

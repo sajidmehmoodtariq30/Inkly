@@ -37,8 +37,7 @@ const OverviewPage = () => {  const [stats, setStats] = useState({
       if (!token) {
         throw new Error('No authentication token found. Please log in again.')
       }
-      
-      const response = await fetch('/api/v1/admin/overview', {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}admin/overview`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
