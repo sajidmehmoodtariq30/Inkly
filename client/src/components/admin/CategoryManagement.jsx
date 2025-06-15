@@ -38,14 +38,13 @@ const CategoryManagement = () => {
     try {
       setLoading(true)
       setError(null)
-      
-      const token = localStorage.getItem('accessToken')
+        const token = localStorage.getItem('accessToken')
       
       if (!token) {
         throw new Error('No authentication token found. Please log in again.')
       }
       
-      const response = await fetch('/api/v1/admin/categories', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}admin/categories`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -78,7 +77,7 @@ const CategoryManagement = () => {
         throw new Error('No authentication token found. Please log in again.')
       }
       
-      const response = await fetch('/api/v1/admin/categories/hierarchy', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}admin/categories/hierarchy`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -105,7 +104,7 @@ const CategoryManagement = () => {
         throw new Error('No authentication token found. Please log in again.')
       }
       
-      const response = await fetch('/api/v1/admin/categories?limit=100', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}admin/categories?limit=100`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -162,7 +161,7 @@ const CategoryManagement = () => {
         throw new Error('No authentication token found. Please log in again.')
       }
       
-      const response = await fetch(`/api/v1/admin/categories/${categoryId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}admin/categories/${categoryId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -188,7 +187,7 @@ const CategoryManagement = () => {
         throw new Error('No authentication token found. Please log in again.')
       }
       
-      const response = await fetch(`/api/v1/admin/categories/${categoryId}/visibility`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}admin/categories/${categoryId}/visibility`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -214,8 +213,7 @@ const CategoryManagement = () => {
       if (!token) {
         throw new Error('No authentication token found. Please log in again.')
       }
-      
-      const response = await fetch('/api/v1/admin/categories', {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}admin/categories`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -242,7 +240,7 @@ const CategoryManagement = () => {
         throw new Error('No authentication token found. Please log in again.')
       }
       
-      const response = await fetch(`/api/v1/admin/categories/${editingCategory._id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}admin/categories/${editingCategory._id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
