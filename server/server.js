@@ -17,7 +17,7 @@ app.use(cors());
 connectDB();
 
 app.get('/', (req, res) => {
-    res.send('Hello, World!');
+    res.send('<h1 style="color: green; font-famly: system-ui;"> Server is Running properly! </div>');
 })
 
 import userRouter from './routes/UserRoutes.js';
@@ -37,3 +37,6 @@ app.use("/api/v1/writer", writerRouter);
 app.listen(Port, () => {
     console.log("Server is running on port " + Port);
 });
+
+// Export the Express API for Vercel
+export default app;
